@@ -1,0 +1,15 @@
+# Development Profile Configuration
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+# gRPC Server Configuration
+grpc:
+  server:
+    port: 9090
+
+# SuperHero API Configuration
+superhero:
+  api:
+    token: 1b3bc65ad40627f75f8edcdfbc67831d 

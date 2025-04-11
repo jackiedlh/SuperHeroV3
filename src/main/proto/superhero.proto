@@ -1,0 +1,74 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "com.example.superheroproxy.proto";
+option java_outer_classname = "SuperheroProto";
+
+package superhero;
+
+service SuperheroService {
+  rpc SearchHero (SearchRequest) returns (SearchResponse) {}
+}
+
+message SearchRequest {
+  string name = 1;
+}
+
+message SearchResponse {
+  string response = 1;
+  string results_for = 2;
+  repeated Hero results = 3;
+}
+
+message Hero {
+  string id = 1;
+  string name = 2;
+  PowerStats powerstats = 3;
+  Biography biography = 4;
+  Appearance appearance = 5;
+  Work work = 6;
+  Connections connections = 7;
+  Image image = 8;
+}
+
+message PowerStats {
+  string intelligence = 1;
+  string strength = 2;
+  string speed = 3;
+  string durability = 4;
+  string power = 5;
+  string combat = 6;
+}
+
+message Biography {
+  string full_name = 1;
+  string alter_egos = 2;
+  repeated string aliases = 3;
+  string place_of_birth = 4;
+  string first_appearance = 5;
+  string publisher = 6;
+  string alignment = 7;
+}
+
+message Appearance {
+  string gender = 1;
+  string race = 2;
+  repeated string height = 3;
+  repeated string weight = 4;
+  string eye_color = 5;
+  string hair_color = 6;
+}
+
+message Work {
+  string occupation = 1;
+  string base = 2;
+}
+
+message Connections {
+  string group_affiliation = 1;
+  string relatives = 2;
+}
+
+message Image {
+  string url = 1;
+} 

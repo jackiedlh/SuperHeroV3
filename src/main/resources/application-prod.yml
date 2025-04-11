@@ -1,0 +1,15 @@
+# Production Profile Configuration
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+# gRPC Server Configuration
+grpc:
+  server:
+    port: 9090
+
+# SuperHero API Configuration
+superhero:
+  api:
+    token: ${SUPERHERO_API_TOKEN}  # Use environment variable in production 

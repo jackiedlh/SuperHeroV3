@@ -1,0 +1,23 @@
+# Common configuration for all profiles
+spring:
+  profiles:
+    active: dev
+
+# gRPC Server Configuration
+grpc:
+  server:
+    port: 9090
+
+# SuperHero API Configuration
+superhero:
+  api:
+    token: 1b3bc65ad40627f75f8edcdfbc67831d
+
+# Logging Configuration (common for all profiles)
+logging:
+  level:
+    root: INFO
+    com.example.superheroproxy: DEBUG
+    net.devh.boot.grpc: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n" 
