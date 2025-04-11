@@ -1,12 +1,19 @@
 package com.example.superheroproxy;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.cache.CacheManager;
 import org.springframework.test.context.ActiveProfiles;
 
+import com.example.superheroproxy.config.TestConfig;
 import com.example.superheroproxy.proto.Biography;
 import com.example.superheroproxy.proto.Hero;
 import com.example.superheroproxy.proto.PowerStats;
@@ -17,12 +24,15 @@ import com.example.superheroproxy.proto.SuperheroServiceGrpc;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
+@SpringBootTest
 @ActiveProfiles("test")
 public class SuperheroClientTest {
 
     @Value("${grpc.server.port}")
     private int grpcPort;
+
+    @Autowired
+    private CacheManager cacheManager;
 
     private ManagedChannel channel;
     private SuperheroServiceGrpc.SuperheroServiceBlockingStub blockingStub;
@@ -30,12 +40,10 @@ public class SuperheroClientTest {
     @BeforeEach
     public void setup() {
         System.out.println("Connecting to gRPC server on port: " + grpcPort);
-        // Create a channel to the server
         channel = ManagedChannelBuilder.forAddress("localhost", grpcPort)
                 .usePlaintext()
                 .build();
         
-        // Create a blocking stub
         blockingStub = SuperheroServiceGrpc.newBlockingStub(channel);
     }
 
@@ -59,29 +67,36 @@ public class SuperheroClientTest {
             // Make the RPC call
             SearchResponse response = blockingStub.searchHero(request);
 
-            // Print the response
+            // Verify response
+            assertNotNull(response);
+            assertEquals("success", response.getResponse());
+            assertEquals("Batman", response.getResultsFor());
+            assertTrue(response.getResultsCount() > 0);
+
+            // Verify cache hit
+            var cache = cacheManager.getCache("superheroCache");
+            assertNotNull(cache);
+            assertNotNull(cache.get("batman"));
+            
+            // Print response details
             System.out.println("Response: " + response.getResponse());
             System.out.println("Results for: " + response.getResultsFor());
             
-            // Print each hero's details
             for (Hero hero : response.getResultsList()) {
                 System.out.println("\nHero: " + hero.getName());
                 System.out.println("ID: " + hero.getId());
                 
-                // Print power stats
                 PowerStats powerStats = hero.getPowerstats();
                 System.out.println("Power Stats:");
                 System.out.println("  Intelligence: " + powerStats.getIntelligence());
                 System.out.println("  Strength: " + powerStats.getStrength());
                 System.out.println("  Speed: " + powerStats.getSpeed());
                 
-                // Print biography
                 Biography bio = hero.getBiography();
                 System.out.println("Biography:");
                 System.out.println("  Full Name: " + bio.getFullName());
                 System.out.println("  Publisher: " + bio.getPublisher());
                 
-                // Print image URL
                 System.out.println("Image URL: " + hero.getImage().getUrl());
             }
         } catch (Exception e) {

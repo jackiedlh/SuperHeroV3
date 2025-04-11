@@ -5,8 +5,12 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.web.client.RestTemplate;
 
 import com.example.superheroproxy.proto.Biography;
@@ -71,10 +75,12 @@ public class SuperheroServiceImplTest {
 
     private TestRestTemplate restTemplate;
     private SuperheroServiceImpl superheroService;
+    private CacheManager cacheManager;
 
     @BeforeEach
     void setUp() {
         restTemplate = new TestRestTemplate();
+        cacheManager = new CaffeineCacheManager("superheroCache");
         superheroService = new SuperheroServiceImpl(restTemplate);
         superheroService.setApiToken("test-token");
     }
@@ -137,6 +143,52 @@ public class SuperheroServiceImplTest {
         assertEquals("DC Comics", bio.getPublisher());
 
         assertEquals("https://example.com/batman.jpg", hero.getImage().getUrl());
+    }
+
+    @Test
+    void testSearchHero_CacheHit() throws Exception {
+        // Prepare test data
+        String mockResponse = """
+            {
+                "response": "success",
+                "results-for": "Batman",
+                "results": [{
+                    "id": "69",
+                    "name": "Batman",
+                    "powerstats": {
+                        "intelligence": "81",
+                        "strength": "40",
+                        "speed": "29"
+                    },
+                    "biography": {
+                        "full-name": "Terry McGinnis",
+                        "publisher": "DC Comics"
+                    },
+                    "image": {
+                        "url": "https://example.com/batman.jpg"
+                    }
+                }]
+            }
+            """;
+
+        restTemplate.setResponse(mockResponse);
+
+        // First request (cache miss)
+        SearchRequest request = SearchRequest.newBuilder()
+            .setName("Batman")
+            .build();
+
+        TestStreamObserver responseObserver1 = new TestStreamObserver();
+        superheroService.searchHero(request, responseObserver1);
+        SearchResponse response1 = responseObserver1.getResponse();
+
+        // Second request (cache hit)
+        TestStreamObserver responseObserver2 = new TestStreamObserver();
+        superheroService.searchHero(request, responseObserver2);
+        SearchResponse response2 = responseObserver2.getResponse();
+
+        // Verify that both responses are the same object (cached)
+        assertEquals(response1, response2);
     }
 
     @Test
