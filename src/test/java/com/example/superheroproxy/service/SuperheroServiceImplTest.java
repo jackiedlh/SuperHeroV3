@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
+import com.example.superheroproxy.config.TestRestTemplate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.cache.CacheManager;
@@ -23,23 +24,7 @@ import io.grpc.stub.StreamObserver;
 
 public class SuperheroServiceImplTest {
 
-    private static class TestRestTemplate extends RestTemplate {
-        private String response;
 
-        public void setResponse(String response) {
-            this.response = response;
-        }
-
-        @Override
-        public <T> T getForObject(String url, Class<T> responseType, Object... uriVariables) {
-            if (responseType == String.class) {
-                @SuppressWarnings("unchecked")
-                T result = (T) response;
-                return result;
-            }
-            return null;
-        }
-    }
 
     private static class TestStreamObserver implements StreamObserver<SearchResponse> {
         private SearchResponse response;

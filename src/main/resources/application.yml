@@ -2,6 +2,10 @@
 spring:
   profiles:
     active: dev
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=1000,expireAfterWrite=1h
 
 # gRPC Server Configuration
 grpc:

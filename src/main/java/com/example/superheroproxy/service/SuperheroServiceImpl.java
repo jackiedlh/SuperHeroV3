@@ -35,8 +35,8 @@ public class SuperheroServiceImpl extends SuperheroServiceGrpc.SuperheroServiceI
         this.objectMapper = new ObjectMapper();
     }
 
-    // Package-private setter for testing
-    void setApiToken(String apiToken) {
+    // Public setter for testing
+    public void setApiToken(String apiToken) {
         this.apiToken = apiToken;
     }
 
@@ -44,7 +44,7 @@ public class SuperheroServiceImpl extends SuperheroServiceGrpc.SuperheroServiceI
     @Cacheable(value = "superheroCache", key = "#request.name.toLowerCase()")
     public void searchHero(SearchRequest request, StreamObserver<SearchResponse> responseObserver) {
         try {
-            SearchResponse response = searchHeroWithCache(request.getName());
+            SearchResponse response = searchHeroInternal(request.getName());
             responseObserver.onNext(response);
             responseObserver.onCompleted();
         } catch (Exception e) {
@@ -54,7 +54,7 @@ public class SuperheroServiceImpl extends SuperheroServiceGrpc.SuperheroServiceI
     }
 
 
-    private SearchResponse searchHeroWithCache(String name) throws Exception {
+    private SearchResponse searchHeroInternal(String name) throws Exception {
         logger.info("Cache miss for hero: {}", name);
         String token = apiToken.trim();
         String url = String.format("https://superheroapi.com/api/%s/search/%s", token, name);
@@ -105,11 +105,4 @@ public class SuperheroServiceImpl extends SuperheroServiceGrpc.SuperheroServiceI
         return responseBuilder.build();
     }
 
-    private int parseInt(String value) {
-        try {
-            return Integer.parseInt(value);
-        } catch (NumberFormatException e) {
-            return 0;
-        }
-    }
-} 
+}
