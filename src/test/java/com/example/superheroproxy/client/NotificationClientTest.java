@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import com.example.superheroproxy.proto.SearchResponse;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -86,11 +87,11 @@ public class NotificationClientTest {
         notificationClient.subscribeToUpdates(heroNames, responseObserver);
 
         // Trigger a cache update by searching for the hero
-        superheroSearchService.searchHero("spider-man");
+        SearchResponse resp = superheroSearchService.searchHero("spider-man");
 
         // Wait for the update with a timeout
         assertTrue(latch.await(10, TimeUnit.SECONDS), "Did not receive update within timeout");
-//        assertEquals(1, receivedUpdates.size(), "Should have received exactly one update");
+        assertEquals(resp.getResultsList().size(), receivedUpdates.size(), "Should have received exactly one update");
         
         HeroUpdate update = receivedUpdates.get(0);
         assertEquals("spider-man", update.getHero().getName().toLowerCase(), "Update should be for spider-man");
