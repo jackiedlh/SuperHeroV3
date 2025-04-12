@@ -16,14 +16,14 @@ import net.devh.boot.grpc.server.service.GrpcService;
  * This class implements the SuperheroServiceGrpc interface and provides the implementation for the gRPC service.
  */
 @GrpcService
-public class SuperheroServiceImpl extends SuperheroServiceGrpc.SuperheroServiceImplBase {
+public class SuperheroServiceProxy extends SuperheroServiceGrpc.SuperheroServiceImplBase {
 
-    private static final Logger logger = LoggerFactory.getLogger(SuperheroServiceImpl.class);
+    private static final Logger logger = LoggerFactory.getLogger(SuperheroServiceProxy.class);
 
     private final SuperheroSearchService superheroSearchService;
 
     @Autowired
-    public SuperheroServiceImpl(SuperheroSearchService superheroSearchService) {
+    public SuperheroServiceProxy(SuperheroSearchService superheroSearchService) {
         this.superheroSearchService = superheroSearchService;
     }
 

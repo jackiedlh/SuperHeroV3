@@ -7,7 +7,7 @@ spring:
 # gRPC Server Configuration
 grpc:
   server:
-    port: 9090
+    port: 9091
 
 # SuperHero API Configuration
 superhero:
