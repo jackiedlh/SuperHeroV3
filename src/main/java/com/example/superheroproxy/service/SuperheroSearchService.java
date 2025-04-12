@@ -24,12 +24,17 @@ public class SuperheroSearchService {
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
     private final CacheUpdateService cacheUpdateService;
+    private final NotificationServiceImpl notificationService;
     private CacheManager cacheManager;
 
-    public SuperheroSearchService(RestTemplate restTemplate, CacheUpdateService cacheUpdateService) {
+    public SuperheroSearchService(
+            RestTemplate restTemplate, 
+            CacheUpdateService cacheUpdateService,
+            NotificationServiceImpl notificationService) {
         this.restTemplate = restTemplate;
         this.objectMapper = new ObjectMapper();
         this.cacheUpdateService = cacheUpdateService;
+        this.notificationService = notificationService;
     }
 
     // Public setter for testing
@@ -47,7 +52,16 @@ public class SuperheroSearchService {
         try {
             // Register the hero for monitoring
             cacheUpdateService.addHeroToMonitor(name);
-            return searchHeroInternal(name);
+            SearchResponse response = searchHeroInternal(name);
+            
+            // Notify subscribers about the initial data
+            if (response.getResultsCount() > 0) {
+                response.getResultsList().forEach(hero -> 
+                    notificationService.notifyHeroUpdate(name, hero)
+                );
+            }
+            
+            return response;
         } catch (Exception e) {
             logger.error("Error searching for hero: {}", name, e);
             throw new RuntimeException("Failed to search for hero: " + name, e);

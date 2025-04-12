@@ -49,9 +49,19 @@ class SuperheroSearchServiceTest {
         }
 
         @Bean
-        SuperheroSearchService superheroSearchService(RestTemplate restTemplate, CacheUpdateService cacheUpdateService, CacheManager cacheManager) {
-            SuperheroSearchService service = new SuperheroSearchService(restTemplate, cacheUpdateService);
+        NotificationServiceImpl notificationService() {
+            return mock(NotificationServiceImpl.class);
+        }
+
+        @Bean
+        SuperheroSearchService superheroSearchService(
+                RestTemplate restTemplate, 
+                CacheUpdateService cacheUpdateService,
+                NotificationServiceImpl notificationService,
+                CacheManager cacheManager) {
+            SuperheroSearchService service = new SuperheroSearchService(restTemplate, cacheUpdateService, notificationService);
             service.setApiToken("test-token");
+            service.setCacheManager(cacheManager);
             return service;
         }
     }
@@ -67,6 +77,9 @@ class SuperheroSearchServiceTest {
 
     @Autowired
     private CacheUpdateService cacheUpdateService;
+
+    @Autowired
+    private NotificationServiceImpl notificationService;
 
     @BeforeEach
     void setUp() {

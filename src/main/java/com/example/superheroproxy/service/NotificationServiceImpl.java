@@ -4,7 +4,6 @@ import com.example.superheroproxy.proto.Hero;
 import com.example.superheroproxy.proto.HeroUpdate;
 import com.example.superheroproxy.proto.NotificationServiceGrpc;
 import com.example.superheroproxy.proto.SubscribeRequest;
-import com.example.superheroproxy.proto.UpdateType;
 import io.grpc.stub.StreamObserver;
 import net.devh.boot.grpc.server.service.GrpcService;
 import org.slf4j.Logger;
@@ -64,13 +63,11 @@ public class NotificationServiceImpl extends NotificationServiceGrpc.Notificatio
         }
     }
 
-    public void notifyHeroUpdate(String heroName, Hero hero, UpdateType type) {
-        logger.debug("Notifying subscribers about {} update for hero: {}", type, heroName);
+    public void notifyHeroUpdate(String heroName, Hero hero) {
+        logger.debug("Notifying subscribers update for hero: {}", heroName);
         
         HeroUpdate update = HeroUpdate.newBuilder()
-                .setType(type)
                 .setHero(hero)
-                .setTimestamp(System.currentTimeMillis())
                 .build();
 
         // Notify specific hero subscribers

@@ -6,7 +6,9 @@ option java_outer_classname = "SuperheroProto";
 
 package superhero;
 
+// The superhero search service definition
 service SuperheroService {
+  // Search for heroes by name
   rpc SearchHero (SearchRequest) returns (SearchResponse) {}
 }
 

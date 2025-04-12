@@ -2,7 +2,6 @@ package com.example.superheroproxy.service;
 
 import com.example.superheroproxy.proto.Hero;
 import com.example.superheroproxy.proto.SearchResponse;
-import com.example.superheroproxy.proto.UpdateType;
 import com.example.superheroproxy.utils.ResponseGenerator;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -92,8 +91,7 @@ public class CacheUpdateService {
                         for (Hero hero : newResponse.getResultsList()) {
                             notificationService.notifyHeroUpdate(
                                 heroName,
-                                hero,
-                                cachedResponse == null ? UpdateType.ADDED : UpdateType.UPDATED
+                                hero
                             );
                         }
                     } else {
