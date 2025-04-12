@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package notification;
+
+import "superhero.proto";
+
+option java_multiple_files = true;
+option java_package = "com.example.superheroproxy.proto";
+option java_outer_classname = "NotificationProto";
+
+// The notification service definition
+service NotificationService {
+  // Server streaming RPC for hero updates
+  rpc SubscribeToUpdates (SubscribeRequest) returns (stream HeroUpdate) {}
+}
+
+// Request message for subscribing to updates
+message SubscribeRequest {
+  // Optional: Filter for specific heroes
+  repeated string hero_names = 1;
+}
+
+// Message containing hero update information
+message HeroUpdate {
+  // Type of update (ADDED, UPDATED, REMOVED)
+  UpdateType type = 1;
+  
+  // The hero that was updated
+  superhero.Hero hero = 2;
+  
+  // Timestamp of the update
+  int64 timestamp = 3;
+}
+
+// Enum for update types
+enum UpdateType {
+  ADDED = 0;
+  UPDATED = 1;
+  REMOVED = 2;
+} 

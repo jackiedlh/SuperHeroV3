@@ -1,6 +1,8 @@
 package com.example.superheroproxy.service;
 
+import com.example.superheroproxy.proto.Hero;
 import com.example.superheroproxy.proto.SearchResponse;
+import com.example.superheroproxy.proto.UpdateType;
 import com.example.superheroproxy.utils.ResponseGenerator;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -39,15 +41,18 @@ public class CacheUpdateService {
     private final CacheManager cacheManager;
     private final ObjectMapper objectMapper;
     private final Set<String> monitoredHeroes;
+    private final NotificationServiceImpl notificationService;
 
     public CacheUpdateService(
             RestTemplate restTemplate,
-            CacheManager cacheManager
+            CacheManager cacheManager,
+            NotificationServiceImpl notificationService
            ) {
         this.restTemplate = restTemplate;
         this.cacheManager = cacheManager;
         this.objectMapper = new ObjectMapper();
         this.monitoredHeroes = new ConcurrentSkipListSet<>();
+        this.notificationService = notificationService;
     }
 
     public void addHeroToMonitor(String heroName) {
@@ -82,6 +87,15 @@ public class CacheUpdateService {
                     if (cachedResponse == null || !cachedResponse.equals(newResponse)) {
                         cache.put(heroName, newResponse);
                         logger.info("Updated cache for hero: {}", heroName);
+                        
+                        // Notify subscribers about the update
+                        for (Hero hero : newResponse.getResultsList()) {
+                            notificationService.notifyHeroUpdate(
+                                heroName,
+                                hero,
+                                cachedResponse == null ? UpdateType.ADDED : UpdateType.UPDATED
+                            );
+                        }
                     } else {
                         logger.debug("No changes detected for hero: {}", heroName);
                     }
@@ -116,6 +130,4 @@ public class CacheUpdateService {
             }
         }
     }
-
-
 } 

@@ -15,6 +15,8 @@ import org.springframework.cache.CacheManager;
 import org.springframework.web.client.RestTemplate;
 
 import com.example.superheroproxy.proto.SearchResponse;
+import com.example.superheroproxy.proto.Hero;
+import com.example.superheroproxy.proto.UpdateType;
 
 public class CacheUpdateServiceTest {
 
@@ -27,6 +29,9 @@ public class CacheUpdateServiceTest {
     @Mock
     private Cache cache;
 
+    @Mock
+    private NotificationServiceImpl notificationService;
+
     private CacheUpdateService cacheUpdateService;
     private static final String API_URL = "https://superheroapi.com/api/1234567890123456";
     private static final String MOCK_RESPONSE = "{\"response\":\"success\",\"results\":[{\"id\":\"1\",\"name\":\"Spider-Man\",\"powerstats\":{\"intelligence\":\"88\",\"strength\":\"55\",\"speed\":\"60\",\"durability\":\"75\",\"power\":\"74\",\"combat\":\"85\"},\"biography\":{\"full-name\":\"Peter Parker\",\"alter-egos\":\"No alter egos found.\",\"aliases\":[\"Spidey\",\"Wall-crawler\",\"Web-slinger\"],\"place-of-birth\":\"New York, New York\",\"first-appearance\":\"Amazing Fantasy #15\",\"publisher\":\"Marvel Comics\",\"alignment\":\"good\"},\"appearance\":{\"gender\":\"Male\",\"race\":\"Human\",\"height\":[\"5'10\",\"178 cm\"],\"weight\":[\"165 lb\",\"75 kg\"],\"eye-color\":\"Hazel\",\"hair-color\":\"Brown\"},\"work\":{\"occupation\":\"Freelance photographer, teacher\",\"base\":\"New York, New York\"},\"connections\":{\"group-affiliation\":\"Avengers\",\"relatives\":\"Richard and Mary Parker (parents, deceased)\"},\"image\":{\"url\":\"https://www.superherodb.com/pictures2/portraits/10/100/133.jpg\"}}]}";
@@ -35,7 +40,7 @@ public class CacheUpdateServiceTest {
     void setUp() {
         MockitoAnnotations.openMocks(this);
         when(cacheManager.getCache(anyString())).thenReturn(cache);
-        cacheUpdateService = new CacheUpdateService(restTemplate, cacheManager);
+        cacheUpdateService = new CacheUpdateService(restTemplate, cacheManager, notificationService);
     }
 
     @Test
@@ -57,6 +62,7 @@ public class CacheUpdateServiceTest {
 
         verify(restTemplate).getForObject(anyString(), eq(String.class));
         verify(cache).put(eq(heroName), any(SearchResponse.class));
+        verify(notificationService).notifyHeroUpdate(eq(heroName), any(Hero.class), eq(UpdateType.ADDED));
     }
 
     @Test
@@ -69,6 +75,7 @@ public class CacheUpdateServiceTest {
 
         verify(restTemplate).getForObject(anyString(), eq(String.class));
         verify(cache, never()).put(anyString(), any());
+        verify(notificationService, never()).notifyHeroUpdate(anyString(), any(Hero.class), any(UpdateType.class));
     }
 
     @Test
@@ -81,5 +88,6 @@ public class CacheUpdateServiceTest {
 
         verify(restTemplate).getForObject(anyString(), eq(String.class));
         verify(cache, never()).put(anyString(), any());
+        verify(notificationService, never()).notifyHeroUpdate(anyString(), any(Hero.class), any(UpdateType.class));
     }
 } 
