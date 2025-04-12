@@ -13,7 +13,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.cache.CacheManager;
 import org.springframework.test.context.ActiveProfiles;
 
-import com.example.superheroproxy.config.TestConfig;
 import com.example.superheroproxy.proto.Biography;
 import com.example.superheroproxy.proto.Hero;
 import com.example.superheroproxy.proto.PowerStats;
@@ -26,7 +25,7 @@ import io.grpc.ManagedChannelBuilder;
 
 @SpringBootTest
 @ActiveProfiles("test")
-public class SuperheroClientTest {
+public class SuperheroProxyTest {
 
     @Value("${grpc.server.port}")
     private int grpcPort;
