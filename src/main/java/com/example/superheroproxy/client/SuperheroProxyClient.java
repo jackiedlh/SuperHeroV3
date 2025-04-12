@@ -2,15 +2,15 @@ package com.example.superheroproxy.client;
 
 import com.example.superheroproxy.proto.HeroUpdate;
 import com.example.superheroproxy.proto.NotificationServiceGrpc;
-import com.example.superheroproxy.proto.SearchRequest;
 import com.example.superheroproxy.proto.SearchResponse;
 import com.example.superheroproxy.proto.SubscribeRequest;
-import com.example.superheroproxy.proto.SuperheroServiceGrpc;
+import com.example.superheroproxy.service.SuperheroSearchService;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -22,17 +22,19 @@ public class SuperheroProxyClient {
     private static final Logger logger = LoggerFactory.getLogger(SuperheroProxyClient.class);
 
     private final ManagedChannel channel;
-    private final SuperheroServiceGrpc.SuperheroServiceBlockingStub searchStub;
     private final NotificationServiceGrpc.NotificationServiceStub notificationStub;
+    private final SuperheroSearchService superheroSearchService;
 
+    @Autowired
     public SuperheroProxyClient(
             @Value("${grpc.server.host:localhost}") String host,
-            @Value("${grpc.server.port:9091}") int port) {
+            @Value("${grpc.server.port:9091}") int port,
+            SuperheroSearchService superheroSearchService) {
         this.channel = ManagedChannelBuilder.forAddress(host, port)
                 .usePlaintext()
                 .build();
-        this.searchStub = SuperheroServiceGrpc.newBlockingStub(channel);
         this.notificationStub = NotificationServiceGrpc.newStub(channel);
+        this.superheroSearchService = superheroSearchService;
     }
 
     /**
@@ -42,10 +44,7 @@ public class SuperheroProxyClient {
      */
     public SearchResponse searchHero(String name) {
         logger.info("Searching for hero: {}", name);
-        SearchRequest request = SearchRequest.newBuilder()
-                .setName(name)
-                .build();
-        return searchStub.searchHero(request);
+        return superheroSearchService.searchHero(name);
     }
 
     /**
@@ -60,7 +59,7 @@ public class SuperheroProxyClient {
                 .addAllHeroNames(heroNames)
                 .build();
 
-        notificationStub.subscribeToUpdates(request, new StreamObserver<HeroUpdate>() {
+        notificationStub.subscribeToUpdates(request, new StreamObserver<>() {
             @Override
             public void onNext(HeroUpdate update) {
                 updateHandler.onUpdate(update);

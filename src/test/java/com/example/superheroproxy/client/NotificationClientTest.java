@@ -14,6 +14,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.cache.CacheManager;
 import org.springframework.test.context.ActiveProfiles;
 
 import com.example.superheroproxy.proto.HeroUpdate;
@@ -31,13 +32,17 @@ public class NotificationClientTest {
     @Autowired
     private SuperheroSearchService superheroSearchService;
 
+    @Autowired
+    private CacheManager cacheManager;
+
     private CountDownLatch latch;
     private List<HeroUpdate> receivedUpdates;
 
     @BeforeEach
     void setUp() {
-        latch = new CountDownLatch(1);
         receivedUpdates = new ArrayList<>();
+        // Clear the cache before each test
+        cacheManager.getCache("superheroCache").clear();
     }
 
     @AfterEach
@@ -49,6 +54,13 @@ public class NotificationClientTest {
     void testSubscribeToUpdates() throws InterruptedException {
         // Create a list of heroes to monitor
         List<String> heroNames = List.of("spider-man");
+
+        // First, search for the hero to get the expected number of results
+        SearchResponse resp = superheroSearchService.searchHero("spider-man");
+        int expectedUpdates = resp.getResultsList().size();
+        
+        // Create a latch that will count down for each expected update
+        latch = new CountDownLatch(expectedUpdates);
 
         // Create a StreamObserver to handle updates
         StreamObserver<HeroUpdate> responseObserver = new StreamObserver<HeroUpdate>() {
@@ -66,34 +78,45 @@ public class NotificationClientTest {
                 System.out.println("  Full Name: " + hero.getBiography().getFullName());
                 System.out.println("  Publisher: " + hero.getBiography().getPublisher());
                 
-                // Count down the latch when we receive the update
+                // Count down the latch for each update
                 latch.countDown();
             }
 
             @Override
             public void onError(Throwable t) {
                 System.err.println("Error in notification stream: " + t.getMessage());
-                latch.countDown();
+                // Count down all remaining latches on error
+                while (latch.getCount() > 0) {
+                    latch.countDown();
+                }
             }
 
             @Override
             public void onCompleted() {
                 System.out.println("Notification stream completed");
-                latch.countDown();
+                // Count down all remaining latches on completion
+                while (latch.getCount() > 0) {
+                    latch.countDown();
+                }
             }
         };
 
         // Subscribe to updates
         notificationClient.subscribeToUpdates(heroNames, responseObserver);
 
-        // Trigger a cache update by searching for the hero
-        SearchResponse resp = superheroSearchService.searchHero("spider-man");
+        // Clear the cache to ensure we get a cache miss
+        cacheManager.getCache("superheroCache").clear();
 
-        // Wait for the update with a timeout
-        assertTrue(latch.await(10, TimeUnit.SECONDS), "Did not receive update within timeout");
-        assertEquals(resp.getResultsList().size(), receivedUpdates.size(), "Should have received exactly one update");
+        // Trigger a search after subscribing to ensure we get updates
+        superheroSearchService.searchHero("spider-man");
+
+        // Wait for all expected updates with a timeout
+        assertTrue(latch.await(10, TimeUnit.SECONDS), "Did not receive all updates within timeout");
+        assertEquals(expectedUpdates, receivedUpdates.size(), "Should have received exactly " + expectedUpdates + " updates");
         
-        HeroUpdate update = receivedUpdates.get(0);
-        assertEquals("spider-man", update.getHero().getName().toLowerCase(), "Update should be for spider-man");
+        // Verify each update
+        for (HeroUpdate update : receivedUpdates) {
+            assertEquals("spider-man", update.getHero().getName().toLowerCase(), "Update should be for spider-man");
+        }
     }
 } 
