@@ -1,19 +1,15 @@
 package com.example.superheroproxy.service;
 
+import com.example.superheroproxy.proto.SearchResponse;
+import com.example.superheroproxy.utils.ResponseGenerator;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-
-import com.example.superheroproxy.proto.Biography;
-import com.example.superheroproxy.proto.Hero;
-import com.example.superheroproxy.proto.Image;
-import com.example.superheroproxy.proto.PowerStats;
-import com.example.superheroproxy.proto.SearchResponse;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 public class SuperheroSearchService {
@@ -22,12 +18,23 @@ public class SuperheroSearchService {
     @Value("${superhero.api.token}")
     private String apiToken;
 
+    @Value("${superhero.api.url}")
+    private String baseUrl;
+
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
+    private final CacheUpdateService cacheUpdateService;
+    private CacheManager cacheManager;
 
-    public SuperheroSearchService(RestTemplate restTemplate) {
+    public SuperheroSearchService(RestTemplate restTemplate, CacheUpdateService cacheUpdateService) {
         this.restTemplate = restTemplate;
         this.objectMapper = new ObjectMapper();
+        this.cacheUpdateService = cacheUpdateService;
+    }
+
+    // Public setter for testing
+    public void setCacheManager(CacheManager cacheManager) {
+        this.cacheManager = cacheManager;
     }
 
     // Public setter for testing
@@ -38,6 +45,8 @@ public class SuperheroSearchService {
     @Cacheable(value = "superheroCache", key = "#name.toLowerCase()")
     public SearchResponse searchHero(String name) {
         try {
+            // Register the hero for monitoring
+            cacheUpdateService.addHeroToMonitor(name);
             return searchHeroInternal(name);
         } catch (Exception e) {
             logger.error("Error searching for hero: {}", name, e);
@@ -45,54 +54,14 @@ public class SuperheroSearchService {
         }
     }
 
-    private SearchResponse searchHeroInternal(String name) throws Exception {
+    public SearchResponse searchHeroInternal(String name) throws Exception {
         logger.info("Cache miss for hero: {}", name);
-        String token = apiToken.trim();
-        String url = String.format("https://superheroapi.com/api/%s/search/%s", token, name);
+        String url = String.format("%s/%s/search/%s", baseUrl.trim(), apiToken.trim(), name);
         logger.debug("Making request to URL: {}", url);
         
         String jsonResponse = restTemplate.getForObject(url, String.class);
         logger.debug("API Response: {}", jsonResponse);
-        
-        JsonNode rootNode = objectMapper.readTree(jsonResponse);
-        SearchResponse.Builder responseBuilder = SearchResponse.newBuilder()
-            .setResponse("success")
-            .setResultsFor(name);
 
-        if (rootNode.has("results") && rootNode.get("results").isArray()) {
-            logger.debug("Number of results: {}", rootNode.get("results").size());
-            for (JsonNode heroNode : rootNode.get("results")) {
-                Hero.Builder heroBuilder = Hero.newBuilder()
-                    .setId(heroNode.get("id").asText())
-                    .setName(heroNode.get("name").asText());
-
-                // Set power stats
-                JsonNode powerStatsNode = heroNode.get("powerstats");
-                PowerStats.Builder powerStatsBuilder = PowerStats.newBuilder()
-                    .setIntelligence(powerStatsNode.get("intelligence").asText())
-                    .setStrength(powerStatsNode.get("strength").asText())
-                    .setSpeed(powerStatsNode.get("speed").asText());
-                heroBuilder.setPowerstats(powerStatsBuilder);
-
-                // Set biography
-                JsonNode biographyNode = heroNode.get("biography");
-                Biography.Builder biographyBuilder = Biography.newBuilder()
-                    .setFullName(biographyNode.get("full-name").asText())
-                    .setPublisher(biographyNode.get("publisher").asText());
-                heroBuilder.setBiography(biographyBuilder);
-
-                // Set image
-                JsonNode imageNode = heroNode.get("image");
-                Image.Builder imageBuilder = Image.newBuilder()
-                    .setUrl(imageNode.get("url").asText());
-                heroBuilder.setImage(imageBuilder);
-
-                responseBuilder.addResults(heroBuilder);
-            }
-        } else {
-            logger.warn("No results found in response");
-        }
-        
-        return responseBuilder.build();
+        return ResponseGenerator.createSearchResponse(name, jsonResponse);
     }
 } 

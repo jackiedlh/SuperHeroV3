@@ -9,16 +9,16 @@ import org.springframework.stereotype.Service;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
 
 @Service
-public class CacheStatsService {
+public class CacheService {
 
-    private static final Logger logger = LoggerFactory.getLogger(CacheStatsService.class);
+    private static final Logger logger = LoggerFactory.getLogger(CacheService.class);
     private final CacheManager cacheManager;
 
-    public CacheStatsService(CacheManager cacheManager) {
+    public CacheService(CacheManager cacheManager) {
         this.cacheManager = cacheManager;
     }
 
-    public void logCacheStats() {
+    public CacheStats getCacheStats() {
         Cache cache = cacheManager.getCache("superheroCache");
         if (cache != null && cache.getNativeCache() instanceof com.github.benmanes.caffeine.cache.Cache) {
             @SuppressWarnings("unchecked")
@@ -34,6 +34,8 @@ public class CacheStatsService {
             logger.info("  Request Count: {}", stats.requestCount());
             logger.info("  Eviction Count: {}", stats.evictionCount());
             logger.info("  Average Load Penalty: {} ns", stats.averageLoadPenalty());
+            return stats;
         }
+        return null;
     }
 } 

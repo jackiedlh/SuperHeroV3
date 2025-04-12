@@ -5,7 +5,18 @@ spring:
   cache:
     type: caffeine
     caffeine:
-      spec: maximumSize=1000,expireAfterWrite=1h
+      spec: maximumSize=1000,expireAfterWrite=65m  # 65 minutes expiration
+
+# SuperHero API Configuration
+superhero:
+  api:
+    url: https://superheroapi.com/api
+    token: 1b3bc65ad40627f75f8edcdfbc67831d
+
+  cache:
+    update:
+      interval: 3600  # Update every hour (60 minutes)
+
 #  autoconfigure:
 #    exclude: org.springframework.boot.actuate.autoconfigure.web.server.ManagementContextAutoConfiguration
 
@@ -25,10 +36,7 @@ grpc:
       permit-keep-alive-time: 5
       permit-keep-alive-without-calls: true
 
-# SuperHero API Configuration
-superhero:
-  api:
-    token: 1b3bc65ad40627f75f8edcdfbc67831d
+
 
 # Logging Configuration (common for all profiles)
 logging:
