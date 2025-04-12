@@ -99,6 +99,16 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-cache</artifactId>
         </dependency>
+
+        <!-- Caffeine Cache -->
+        <!-- Caffeine is a high-performance caching library for Java. It provides an in-memory cache with advanced features such as automatic loading of cache entries, cache expiration, and statistics. -->
+        <!-- It is designed to be used as a drop-in replacement for the Guava Cache and provides better performance and more features. -->
+        <!-- Benefits of using Caffeine include: -->
+        <!-- - High performance: Caffeine is designed to be highly performant and can handle a large number of cache hits and misses efficiently. -->
+        <!-- - Automatic cache loading: Caffeine provides a mechanism to automatically load cache entries when they are missing, reducing the load on the application. -->
+        <!-- - Cache expiration: Caffeine allows for cache entries to be expired after a certain amount of time, ensuring that stale data is not served. -->
+        <!-- - Statistics: Caffeine provides detailed statistics about cache hits, misses, and other metrics, making it easier to monitor and optimize cache performance. -->
+        <!-- - Better than Guava Cache: Caffeine is designed to be a drop-in replacement for the Guava Cache and provides better performance and more features. -->
         <dependency>
             <groupId>com.github.ben-manes.caffeine</groupId>
             <artifactId>caffeine</artifactId>
@@ -107,7 +117,8 @@
 
     <build>
         <extensions>
-            <extension>
+            <!-- OS Maven Plugin: This plugin is used to detect the operating system and architecture of the build environment. -->
+            <extension>    
                 <groupId>kr.motd.maven</groupId>
                 <artifactId>os-maven-plugin</artifactId>
                 <version>1.7.1</version>
@@ -129,11 +140,12 @@
             <plugin>
                 <groupId>org.xolstice.maven.plugins</groupId>
                 <artifactId>protobuf-maven-plugin</artifactId>
-                <version>0.6.1</version>
                 <configuration>
                     <protocArtifact>com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}</protocArtifact>
                     <pluginId>grpc-java</pluginId>
                     <pluginArtifact>io.grpc:protoc-gen-grpc-java:${grpc.version}:exe:${os.detected.classifier}</pluginArtifact>
+                    <clearOutputDirectory>false</clearOutputDirectory>
+                    <outputDirectory>${project.build.directory}/generated-sources/protobuf/java</outputDirectory>
                 </configuration>
                 <executions>
                     <execution>
