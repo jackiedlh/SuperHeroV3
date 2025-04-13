@@ -153,6 +153,9 @@
             color: #495057;
             border-bottom: 1px solid #dee2e6;
             padding-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
         
         .cache-stats table {
@@ -184,6 +187,7 @@
             padding: 0 5px;
             margin-left: 10px;
             transition: transform 0.3s ease;
+            font-weight: bold;
         }
         
         .refresh-button:hover {
@@ -224,7 +228,7 @@
                 <div id="cacheKeys" class="cache-keys"></div>
                 <div id="heroDetails" class="hero-details"></div>
                 <div id="cacheStats" class="cache-stats">
-                    <h3>Cache Statistics <button onclick="updateCacheStats()" class="refresh-button">O</button></h3>
+                    <h3>Cache Statistics <button onclick="updateCacheStats()" class="refresh-button" title="Refresh Statistics">&#8635;</button></h3>
                     <table>
                         <tr>
                             <th>Size</th>
