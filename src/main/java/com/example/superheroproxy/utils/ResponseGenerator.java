@@ -32,7 +32,6 @@ public class ResponseGenerator {
             if (results != null && results.isArray()) {
                 StreamSupport.stream(results.spliterator(), false)
                     .map(ResponseGenerator::generateHero)
-                    .filter(hero -> hero.getName().equalsIgnoreCase(searchName))
                     .forEach(responseBuilder::addResults);
             }
 

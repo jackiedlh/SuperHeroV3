@@ -14,7 +14,7 @@ service NotificationService {
   rpc SubscribeToUpdates (SubscribeRequest) returns (stream HeroUpdate) {}
 }
 
-// The request message containing the hero names to subscribe to
+// The request message containing the hero ids to subscribe to
 message SubscribeRequest {
   repeated string hero_ids = 1;
 }

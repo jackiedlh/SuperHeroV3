@@ -24,7 +24,7 @@ import io.grpc.ManagedChannelBuilder;
 
 @SpringBootTest
 @ActiveProfiles("test")
-public class SuperheroProxyTest {
+public class SuperheroProxyTestClient {
 
     @Value("${grpc.server.port}")
     private int grpcPort;
