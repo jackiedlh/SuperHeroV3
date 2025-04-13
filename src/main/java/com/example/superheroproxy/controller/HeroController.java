@@ -8,6 +8,7 @@ import org.springframework.cache.CacheManager;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -75,5 +76,25 @@ public class HeroController {
 
         cache.put(heroId, updatedHero);
         return ResponseEntity.ok(new HeroDto(updatedHero.getId(), updatedHero.getName()));
+    }
+
+    @GetMapping("/api/cache/stats")
+    public ResponseEntity<Map<String, Object>> getCacheStats() {
+        Cache cache = cacheManager.getCache("superheroCache");
+        if (cache == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        com.github.benmanes.caffeine.cache.Cache<Object, Object> nativeCache = 
+            (com.github.benmanes.caffeine.cache.Cache<Object, Object>) cache.getNativeCache();
+        
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("size", nativeCache.estimatedSize());
+        stats.put("hitCount", nativeCache.stats().hitCount());
+        stats.put("missCount", nativeCache.stats().missCount());
+        stats.put("hitRate", nativeCache.stats().hitRate());
+        stats.put("evictionCount", nativeCache.stats().evictionCount());
+        
+        return ResponseEntity.ok(stats);
     }
 } 

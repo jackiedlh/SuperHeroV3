@@ -55,7 +55,7 @@ function showSubscribedHeroDetails(heroId) {
         })
         .catch(error => {
             heroDetails.innerHTML = `
-                <h3>Error loading hero details</h3>
+<!--                <h3>Error loading hero details</h3>-->
                 <p>${error.message}</p>
             `;
         });
@@ -199,9 +199,32 @@ function addUpdate(message, isError = false) {
     document.getElementById('updates').appendChild(update);
 }
 
+function updateCacheStats() {
+    fetch(`${baseUrl}/api/cache/stats`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to fetch cache stats');
+            }
+            return response.json();
+        })
+        .then(stats => {
+            document.getElementById('cacheSize').textContent = stats.size;
+            document.getElementById('cacheHitCount').textContent = stats.hitCount;
+            document.getElementById('cacheMissCount').textContent = stats.missCount;
+            document.getElementById('cacheHitRate').textContent = (stats.hitRate * 100).toFixed(2) + '%';
+            document.getElementById('cacheEvictionCount').textContent = stats.evictionCount;
+        })
+        .catch(error => {
+            console.error('Error fetching cache stats:', error);
+        });
+}
+
 function showCacheKeys() {
     const cacheKeysElement = document.getElementById('cacheKeys');
     cacheKeysElement.innerHTML = '<p>Loading cache keys...</p>';
+    
+    // Update cache stats
+    updateCacheStats();
     
     fetch(`${baseUrl}/api/cache/keys`)
         .then(response => {
@@ -216,15 +239,34 @@ function showCacheKeys() {
                 return;
             }
             
-            const keysList = document.createElement('ul');
-            keys.forEach(key => {
-                const li = document.createElement('li');
-                li.innerHTML = `<span onclick="showHeroDetails('${key}')" style="cursor: pointer;">${key}</span>`;
-                keysList.appendChild(li);
-            });
+            // Create a grid container
+            const gridContainer = document.createElement('div');
+            gridContainer.className = 'cache-keys-grid';
+            
+            // Create columns (3 columns)
+            const columns = 3;
+            const itemsPerColumn = Math.ceil(keys.length / columns);
+            
+            for (let i = 0; i < columns; i++) {
+                const column = document.createElement('div');
+                column.className = 'cache-keys-column';
+                
+                const startIndex = i * itemsPerColumn;
+                const endIndex = Math.min(startIndex + itemsPerColumn, keys.length);
+                
+                for (let j = startIndex; j < endIndex; j++) {
+                    const key = keys[j];
+                    const keyElement = document.createElement('div');
+                    keyElement.className = 'cache-key-item';
+                    keyElement.innerHTML = `<span onclick="showHeroDetails('${key}')" style="cursor: pointer;">${key}</span>`;
+                    column.appendChild(keyElement);
+                }
+                
+                gridContainer.appendChild(column);
+            }
             
             cacheKeysElement.innerHTML = '';
-            cacheKeysElement.appendChild(keysList);
+            cacheKeysElement.appendChild(gridContainer);
         })
         .catch(error => {
             cacheKeysElement.innerHTML = `<p class="error">Error: ${error.message}</p>`;
@@ -262,7 +304,7 @@ function showHeroDetails(heroId) {
         })
         .catch(error => {
             heroDetails.innerHTML = `
-                <h3>Error loading hero details</h3>
+<!--                <h3>Error loading hero details</h3>-->
                 <p>${error.message}</p>
             `;
         });
@@ -309,4 +351,7 @@ function saveHeroName(heroId) {
 function cancelEdit() {
     const heroId = document.getElementById('heroId').value;
     showHeroDetails(heroId);
-} 
+}
+
+// Update cache stats periodically
+setInterval(updateCacheStats, 5000); // Update every 5 seconds 

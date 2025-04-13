@@ -111,6 +111,89 @@
         .cache-keys {
             margin-top: 20px;
         }
+        .cache-keys-grid {
+            display: flex;
+            gap: 20px;
+            margin-top: 10px;
+        }
+        
+        .cache-keys-column {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .cache-key-item {
+            padding: 5px;
+            border-radius: 4px;
+            background-color: #f5f5f5;
+            transition: background-color 0.2s;
+        }
+        
+        .cache-key-item:hover {
+            background-color: #e0e0e0;
+        }
+        
+        .cache-key-item span {
+            display: block;
+            padding: 5px;
+        }
+        
+        .cache-stats {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .cache-stats h3 {
+            margin-top: 0;
+            color: #495057;
+            border-bottom: 1px solid #dee2e6;
+            padding-bottom: 10px;
+        }
+        
+        .cache-stats table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .cache-stats th {
+            text-align: left;
+            padding: 8px;
+            color: #6c757d;
+        }
+        
+        .cache-stats td {
+            padding: 8px;
+            font-family: monospace;
+        }
+        
+        .cache-stats tr:nth-child(even) {
+            background-color: #f1f3f5;
+        }
+        
+        .refresh-button {
+            background: none;
+            border: none;
+            color: #6c757d;
+            cursor: pointer;
+            font-size: 1.2em;
+            padding: 0 5px;
+            margin-left: 10px;
+            transition: transform 0.3s ease;
+        }
+        
+        .refresh-button:hover {
+            color: #495057;
+            transform: rotate(180deg);
+        }
+        
+        .refresh-button:active {
+            transform: rotate(360deg);
+        }
     </style>
 </head>
 <body>
@@ -135,13 +218,36 @@
             <div id="updates"></div>
         </div>
         <div class="right-panel">
-            <h3>Cache</h3>
-            <div>
+            <div class="panel">
+                <h2>Cache</h2>
                 <button onclick="showCacheKeys()">Show All Cache Keys</button>
                 <div id="cacheKeys" class="cache-keys"></div>
-            </div>
-            <div id="heroDetails" class="hero-details">
-                <p>Click on a hero ID in the list to view details</p>
+                <div id="heroDetails" class="hero-details"></div>
+                <div id="cacheStats" class="cache-stats">
+                    <h3>Cache Statistics <button onclick="updateCacheStats()" class="refresh-button">O</button></h3>
+                    <table>
+                        <tr>
+                            <th>Size</th>
+                            <td id="cacheSize">-</td>
+                        </tr>
+                        <tr>
+                            <th>Hit Count</th>
+                            <td id="cacheHitCount">-</td>
+                        </tr>
+                        <tr>
+                            <th>Miss Count</th>
+                            <td id="cacheMissCount">-</td>
+                        </tr>
+                        <tr>
+                            <th>Hit Rate</th>
+                            <td id="cacheHitRate">-</td>
+                        </tr>
+                        <tr>
+                            <th>Eviction Count</th>
+                            <td id="cacheEvictionCount">-</td>
+                        </tr>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
