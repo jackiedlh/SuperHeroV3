@@ -7,6 +7,10 @@ spring:
     caffeine:
       spec: maximumSize=1000,expireAfterWrite=65m  # 65 minutes expiration
 
+# Server Configuration
+server:
+  port: 8080  # HTTP port
+
 # SuperHero API Configuration
 superhero:
   api:
@@ -15,7 +19,7 @@ superhero:
 
   cache:
     update:
-      interval: 3600  # Update every hour (60 minutes)
+      interval: 60  # 1 minute in seconds (test only)
 
 #  autoconfigure:
 #    exclude: org.springframework.boot.actuate.autoconfigure.web.server.ManagementContextAutoConfiguration
@@ -35,8 +39,6 @@ grpc:
       max-connection-age-grace: 5
       permit-keep-alive-time: 5
       permit-keep-alive-without-calls: true
-
-
 
 # Logging Configuration (common for all profiles)
 logging:

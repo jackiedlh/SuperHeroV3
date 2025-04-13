@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SuperHero Notification Client</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        #updates {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            height: 300px;
+            overflow-y: auto;
+        }
+        .update {
+            margin: 5px 0;
+            padding: 5px;
+            border-bottom: 1px solid #eee;
+        }
+        .error {
+            color: red;
+        }
+        .ping {
+            color: #666;
+            font-size: 0.8em;
+        }
+        .status {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            padding: 5px 10px;
+            border-radius: 3px;
+        }
+        .connected {
+            background-color: #dff0d8;
+            color: #3c763d;
+        }
+        .disconnected {
+            background-color: #f2dede;
+            color: #a94442;
+        }
+    </style>
+</head>
+<body>
+    <h1>SuperHero Notification Client</h1>
+    <div>
+        <label for="heroId">Hero ID:</label>
+        <input type="text" id="heroId" value="620">
+        <button onclick="subscribe()">Subscribe</button>
+        <button onclick="unsubscribe()">Unsubscribe</button>
+    </div>
+    <div id="status" class="status disconnected">Disconnected</div>
+    <div id="updates"></div>
+
+    <script>
+        let eventSource = null;
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 5;
+        const baseUrl = 'http://localhost:8080';  // HTTP port
+
+        function updateStatus(connected) {
+            const status = document.getElementById('status');
+            status.className = `status ${connected ? 'connected' : 'disconnected'}`;
+            status.textContent = connected ? 'Connected' : 'Disconnected';
+        }
+
+        function subscribe() {
+            const heroId = document.getElementById('heroId').value;
+            
+            // Clear previous updates
+            document.getElementById('updates').innerHTML = '';
+            
+            // Close existing connection if any
+            if (eventSource) {
+                eventSource.close();
+            }
+
+            // Create new EventSource
+            eventSource = new EventSource(`${baseUrl}/api/notifications/subscribe/${heroId}`);
+            updateStatus(true);
+            reconnectAttempts = 0;
+
+            eventSource.onmessage = function(event) {
+                try {
+                    if (event.data === 'ping') {
+                        // Handle ping message
+                        const pingElement = document.createElement('div');
+                        pingElement.className = 'update ping';
+                        pingElement.textContent = 'Ping received';
+                        document.getElementById('updates').appendChild(pingElement);
+                        return;
+                    }
+
+                    const update = JSON.parse(event.data);
+                    const hero = update.hero;
+                    
+                    const updateElement = document.createElement('div');
+                    updateElement.className = 'update';
+                    updateElement.innerHTML = `
+                        <strong>${hero.name}</strong><br>
+                        Power Stats: ${JSON.stringify(hero.powerstats)}<br>
+                        Biography: ${JSON.stringify(hero.biography)}
+                    `;
+                    document.getElementById('updates').appendChild(updateElement);
+                } catch (error) {
+                    addUpdate('Error parsing update: ' + error.message, true);
+                }
+            };
+
+            eventSource.onerror = function(error) {
+                console.error('EventSource failed:', error);
+                updateStatus(false);
+                eventSource.close();
+                eventSource = null;
+
+                // Attempt to reconnect
+                if (reconnectAttempts < maxReconnectAttempts) {
+                    reconnectAttempts++;
+                    addUpdate(`Connection lost. Attempting to reconnect (${reconnectAttempts}/${maxReconnectAttempts})...`, true);
+                    setTimeout(subscribe, 5000); // Try to reconnect after 5 seconds
+                } else {
+                    addUpdate('Connection lost. Maximum reconnection attempts reached.', true);
+                }
+            };
+        }
+
+        function unsubscribe() {
+            const heroId = document.getElementById('heroId').value;
+            
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+                updateStatus(false);
+                
+                // Call unsubscribe endpoint
+                fetch(`${baseUrl}/api/notifications/unsubscribe/${heroId}`, {
+                    method: 'POST'
+                }).catch(error => {
+                    console.error('Unsubscribe failed:', error);
+                    addUpdate('Error unsubscribing: ' + error.message, true);
+                });
+                
+                addUpdate('Unsubscribed from updates');
+            }
+        }
+
+        function addUpdate(message, isError = false) {
+            const update = document.createElement('div');
+            update.className = 'update' + (isError ? ' error' : '');
+            update.textContent = message;
+            document.getElementById('updates').appendChild(update);
+        }
+    </script>
+</body>
+</html> 
