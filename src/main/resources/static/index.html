@@ -5,9 +5,23 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            max-width: 800px;
+            max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+        }
+        .left-panel {
+            flex: 1;
+        }
+        .right-panel {
+            flex: 1;
+            padding: 20px;
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+            min-height: 500px;
         }
         #updates {
             margin-top: 20px;
@@ -43,29 +57,142 @@
             background-color: #f2dede;
             color: #a94442;
         }
+        #subscriptions {
+            margin: 20px 0;
+            padding: 10px;
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+        }
+        .subscription-item {
+            display: inline-block;
+            margin: 5px;
+            padding: 5px 10px;
+            background-color: #e9ecef;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .subscription-item:hover {
+            background-color: #dde2e6;
+        }
+        .subscription-item button {
+            margin-left: 5px;
+            padding: 2px 5px;
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .subscription-item button:hover {
+            background-color: #c82333;
+        }
+        .hero-details {
+            margin-top: 20px;
+        }
+        .hero-details h3 {
+            margin-top: 0;
+        }
+        .hero-details table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        .hero-details th, .hero-details td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .hero-details th {
+            background-color: #f2f2f2;
+        }
+        .hero-details tr:hover {
+            background-color: #f5f5f5;
+        }
     </style>
 </head>
 <body>
     <h1>SuperHero Notification Client</h1>
-    <div>
-        <label for="heroId">Hero ID:</label>
-        <input type="text" id="heroId" value="620">
-        <button onclick="subscribe()">Subscribe</button>
-        <button onclick="unsubscribe()">Unsubscribe</button>
+    <div class="container">
+        <div class="left-panel">
+            <div>
+                <label for="heroId">Hero ID:</label>
+                <input type="text" id="heroId" value="620">
+                <button onclick="subscribe()">Subscribe</button>
+                <button onclick="unsubscribe()">Unsubscribe</button>
+            </div>
+            <div id="subscriptions">
+                <h3>Subscribed Heroes</h3>
+                <div id="subscriptionList"></div>
+            </div>
+            <div id="status" class="status disconnected">Disconnected</div>
+            <div id="updates"></div>
+        </div>
+        <div class="right-panel">
+            <h3>Cache</h3>
+            <div id="heroDetails" class="hero-details">
+                <p>Click on a hero ID in the list to view details</p>
+            </div>
+        </div>
     </div>
-    <div id="status" class="status disconnected">Disconnected</div>
-    <div id="updates"></div>
 
     <script>
         let eventSource = null;
         let reconnectAttempts = 0;
         const maxReconnectAttempts = 5;
         const baseUrl = 'http://localhost:8080';  // HTTP port
+        let subscribedHeroes = new Set();
 
         function updateStatus(connected) {
             const status = document.getElementById('status');
             status.className = `status ${connected ? 'connected' : 'disconnected'}`;
             status.textContent = connected ? 'Connected' : 'Disconnected';
+        }
+
+        function updateSubscriptionList() {
+            const subscriptionList = document.getElementById('subscriptionList');
+            subscriptionList.innerHTML = '';
+            subscribedHeroes.forEach(heroId => {
+                const item = document.createElement('div');
+                item.className = 'subscription-item';
+                item.innerHTML = `
+                    <span onclick="showHeroDetails('${heroId}')">Hero ID: ${heroId}</span>
+                    <button onclick="unsubscribeHero('${heroId}')">x</button>
+                `;
+                subscriptionList.appendChild(item);
+            });
+        }
+
+        function showHeroDetails(heroId) {
+            const heroDetails = document.getElementById('heroDetails');
+            heroDetails.innerHTML = '<h3>Loading hero details...</h3>';
+
+            fetch(`${baseUrl}/api/heroes/${heroId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Hero not found in cache');
+                    }
+                    return response.json();
+                })
+                .then(hero => {
+                    heroDetails.innerHTML = `
+                        <table>
+                            <tr>
+                                <th>ID</th>
+                                <td>${hero.id}</td>
+                            </tr>
+                            <tr>
+                                <th>Name</th>
+                                <td>${hero.name}</td>
+                            </tr>
+                        </table>
+                    `;
+                })
+                .catch(error => {
+                    heroDetails.innerHTML = `
+                        <h3>Error loading hero details</h3>
+                        <p>${error.message}</p>
+                    `;
+                });
         }
 
         function subscribe() {
@@ -83,6 +210,9 @@
             eventSource = new EventSource(`${baseUrl}/api/notifications/subscribe/${heroId}`);
             updateStatus(true);
             reconnectAttempts = 0;
+            subscribedHeroes.add(heroId);
+            updateSubscriptionList();
+            showHeroDetails(heroId);
 
             eventSource.onmessage = function(event) {
                 try {
@@ -128,9 +258,7 @@
             };
         }
 
-        function unsubscribe() {
-            const heroId = document.getElementById('heroId').value;
-            
+        function unsubscribeHero(heroId) {
             if (eventSource) {
                 eventSource.close();
                 eventSource = null;
@@ -139,13 +267,20 @@
                 // Call unsubscribe endpoint
                 fetch(`${baseUrl}/api/notifications/unsubscribe/${heroId}`, {
                     method: 'POST'
+                }).then(() => {
+                    subscribedHeroes.delete(heroId);
+                    updateSubscriptionList();
+                    addUpdate(`Unsubscribed from hero ${heroId}`);
                 }).catch(error => {
                     console.error('Unsubscribe failed:', error);
                     addUpdate('Error unsubscribing: ' + error.message, true);
                 });
-                
-                addUpdate('Unsubscribed from updates');
             }
+        }
+
+        function unsubscribe() {
+            const heroId = document.getElementById('heroId').value;
+            unsubscribeHero(heroId);
         }
 
         function addUpdate(message, isError = false) {
