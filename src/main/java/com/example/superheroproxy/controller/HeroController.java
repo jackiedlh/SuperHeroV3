@@ -1,7 +1,10 @@
 package com.example.superheroproxy.controller;
 
 import com.example.superheroproxy.dto.HeroDto;
+import com.example.superheroproxy.dto.SearchResultDto;
 import com.example.superheroproxy.proto.Hero;
+import com.example.superheroproxy.proto.SearchResponse;
+import com.example.superheroproxy.service.SuperheroSearchService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
@@ -9,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -17,10 +21,12 @@ import java.util.stream.Collectors;
 public class HeroController {
 
     private final CacheManager cacheManager;
+    private final SuperheroSearchService superheroSearchService;
 
     @Autowired
-    public HeroController(CacheManager cacheManager) {
+    public HeroController(CacheManager cacheManager, SuperheroSearchService superheroSearchService) {
         this.cacheManager = cacheManager;
+        this.superheroSearchService = superheroSearchService;
     }
 
     @GetMapping("/api/cache/keys")
@@ -96,5 +102,18 @@ public class HeroController {
         stats.put("evictionCount", nativeCache.stats().evictionCount());
         
         return ResponseEntity.ok(stats);
+    }
+
+    @GetMapping("/api/search")
+    public ResponseEntity<List<SearchResultDto>> searchHero(@RequestParam String name) {
+        try {
+            SearchResponse response = superheroSearchService.searchHero(name);
+            List<SearchResultDto> results = response.getResultsList().stream()
+                .map(hero -> new SearchResultDto(hero.getId(), hero.getName()))
+                .collect(Collectors.toList());
+            return ResponseEntity.ok(results);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
     }
 } 

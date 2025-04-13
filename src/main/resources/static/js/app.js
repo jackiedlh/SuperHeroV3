@@ -354,4 +354,45 @@ function cancelEdit() {
 }
 
 // Update cache stats periodically
-setInterval(updateCacheStats, 5000); // Update every 5 seconds 
+setInterval(updateCacheStats, 5000); // Update every 5 seconds
+
+async function searchHero() {
+    const searchInput = document.getElementById('searchInput');
+    const searchTerm = searchInput.value.trim();
+    
+    if (!searchTerm) {
+        alert('Please enter a search term');
+        return;
+    }
+
+    const searchResults = document.getElementById('searchResults');
+    searchResults.innerHTML = '<p>Searching...</p>';
+
+    try {
+        const response = await fetch(`${baseUrl}/api/search?name=${encodeURIComponent(searchTerm)}`);
+        if (!response.ok) {
+            throw new Error('Search failed');
+        }
+        
+        const data = await response.json();
+        if (data.length === 0) {
+            searchResults.innerHTML = '<p>No heroes found</p>';
+            return;
+        }
+
+        searchResults.innerHTML = data.map(hero => `
+            <div class="search-result-item" onclick="selectHero(${hero.id})">
+                <strong>${hero.name}</strong>
+                <p>ID: ${hero.id}</p>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Search error:', error);
+        searchResults.innerHTML = '<p>Error searching for heroes</p>';
+    }
+}
+
+function selectHero(heroId) {
+    document.getElementById('heroId').value = heroId;
+    subscribeToHero();
+} 
