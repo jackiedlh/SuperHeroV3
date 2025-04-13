@@ -27,15 +27,18 @@ public class SuperheroSearchService {
     private final CacheUpdateService cacheUpdateService;
     private final NotificationServiceImpl notificationService;
     private CacheManager cacheManager;
+    private final ExternalAPIService externalAPIService;
 
     public SuperheroSearchService(
-            RestTemplate restTemplate, 
+            RestTemplate restTemplate,
             CacheUpdateService cacheUpdateService,
-            NotificationServiceImpl notificationService) {
+            NotificationServiceImpl notificationService,
+            ExternalAPIService externalAPIService) {
         this.restTemplate = restTemplate;
         this.objectMapper = new ObjectMapper();
         this.cacheUpdateService = cacheUpdateService;
         this.notificationService = notificationService;
+        this.externalAPIService = externalAPIService;
     }
 
     // Public setter for testing
@@ -50,13 +53,13 @@ public class SuperheroSearchService {
 
     @Cacheable(value = "heroSearchCache", key = "#name.toLowerCase()")
     public SearchResponse searchHero(String name) {
-        logger.info("Cache miss for hero search: {}", name);
-        String url = String.format("%s/%s/search/%s", baseUrl, apiToken, name);
-        logger.debug("Making request to: {}", url);
+//        logger.info("Cache miss for hero search: {}", name);
+//        String url = String.format("%s/%s/search/%s", baseUrl, apiToken, name);
+//        logger.debug("Making request to: {}", url);
 
         try {
-            String response = restTemplate.getForObject(url, String.class);
-            SearchResponse searchResponse = ResponseGenerator.createSearchResponse(name, response);
+
+            SearchResponse searchResponse = externalAPIService.searchHero(name);
             
             // Notify about the search
             //notificationService.notifySearch(name);
@@ -73,7 +76,7 @@ public class SuperheroSearchService {
         try {
             // Register the hero for monitoring
             cacheUpdateService.addHeroToMonitor(id);
-            Hero hero = getHeroInternal(id);
+            Hero hero = externalAPIService.getHero(id);
 
             // Notify subscribers about the initial data
             if (hero != null) {
@@ -87,25 +90,7 @@ public class SuperheroSearchService {
         }
     }
 
-    public Hero getHeroInternal(String id) throws Exception {
-        logger.info("Cache miss for hero id: {}", id);
-        String url = String.format("%s/%s/%s", baseUrl.trim(), apiToken.trim(), id);
-        logger.debug("Making request to URL: {}", url);
 
-        String jsonResponse = restTemplate.getForObject(url, String.class);
-        logger.debug("API Response: {}", jsonResponse);
 
-        return ResponseGenerator.generateHero(jsonResponse);
-    }
 
-    public SearchResponse searchHeroInternal(String name) throws Exception {
-        logger.info("Cache miss for hero: {}", name);
-        String url = String.format("%s/%s/search/%s", baseUrl.trim(), apiToken.trim(), name);
-        logger.debug("Making request to URL: {}", url);
-        
-        String jsonResponse = restTemplate.getForObject(url, String.class);
-        logger.debug("API Response: {}", jsonResponse);
-
-        return ResponseGenerator.createSearchResponse(name, jsonResponse);
-    }
 } 

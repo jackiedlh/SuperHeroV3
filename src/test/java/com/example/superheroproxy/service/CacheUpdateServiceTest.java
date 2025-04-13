@@ -12,14 +12,12 @@ import static org.mockito.Mockito.when;
 import org.mockito.MockitoAnnotations;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
-import org.springframework.web.client.RestTemplate;
 
-import com.example.superheroproxy.proto.SearchResponse;
+import com.example.superheroproxy.proto.Hero;
+import com.example.superheroproxy.utils.ResponseGenerator;
+import com.fasterxml.jackson.core.JsonProcessingException;
 
 public class CacheUpdateServiceTest {
-
-    @Mock
-    private RestTemplate restTemplate;
 
     @Mock
     private CacheManager cacheManager;
@@ -30,15 +28,17 @@ public class CacheUpdateServiceTest {
     @Mock
     private NotificationServiceImpl notificationService;
 
+    @Mock
+    private ExternalAPIService externalAPIService;
+
     private CacheUpdateService cacheUpdateService;
-    private static final String API_URL = "https://superheroapi.com/api/1234567890123456";
-    private static final String MOCK_RESPONSE = "{\"response\":\"success\",\"results\":[{\"id\":\"1\",\"name\":\"Spider-Man\",\"powerstats\":{\"intelligence\":\"88\",\"strength\":\"55\",\"speed\":\"60\",\"durability\":\"75\",\"power\":\"74\",\"combat\":\"85\"},\"biography\":{\"full-name\":\"Peter Parker\",\"alter-egos\":\"No alter egos found.\",\"aliases\":[\"Spidey\",\"Wall-crawler\",\"Web-slinger\"],\"place-of-birth\":\"New York, New York\",\"first-appearance\":\"Amazing Fantasy #15\",\"publisher\":\"Marvel Comics\",\"alignment\":\"good\"},\"appearance\":{\"gender\":\"Male\",\"race\":\"Human\",\"height\":[\"5'10\",\"178 cm\"],\"weight\":[\"165 lb\",\"75 kg\"],\"eye-color\":\"Hazel\",\"hair-color\":\"Brown\"},\"work\":{\"occupation\":\"Freelance photographer, teacher\",\"base\":\"New York, New York\"},\"connections\":{\"group-affiliation\":\"Avengers\",\"relatives\":\"Richard and Mary Parker (parents, deceased)\"},\"image\":{\"url\":\"https://www.superherodb.com/pictures2/portraits/10/100/133.jpg\"}}]}";
+    private static final String MOCK_RESPONSE = "{\"response\":\"success\",\"id\":\"620\",\"name\":\"Spider-Man\",\"powerstats\":{\"intelligence\":\"88\",\"strength\":\"55\",\"speed\":\"60\",\"durability\":\"75\",\"power\":\"74\",\"combat\":\"85\"},\"biography\":{\"full-name\":\"Peter Parker\",\"alter-egos\":\"No alter egos found.\",\"aliases\":[\"Spidey\",\"Wall-crawler\",\"Web-slinger\"],\"place-of-birth\":\"New York, New York\",\"first-appearance\":\"Amazing Fantasy #15\",\"publisher\":\"Marvel Comics\",\"alignment\":\"good\"},\"appearance\":{\"gender\":\"Male\",\"race\":\"Human\",\"height\":[\"5'10\",\"178 cm\"],\"weight\":[\"165 lb\",\"75 kg\"],\"eye-color\":\"Hazel\",\"hair-color\":\"Brown\"},\"work\":{\"occupation\":\"Freelance photographer, teacher\",\"base\":\"New York, New York\"},\"connections\":{\"group-affiliation\":\"Avengers\",\"relatives\":\"Richard and Mary Parker (parents, deceased)\"},\"image\":{\"url\":\"https://www.superherodb.com/pictures2/portraits/10/100/133.jpg\"}}";
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
         when(cacheManager.getCache(anyString())).thenReturn(cache);
-        cacheUpdateService = new CacheUpdateService(restTemplate, cacheManager, notificationService);
+        cacheUpdateService = new CacheUpdateService(cacheManager, notificationService, externalAPIService);
     }
 
     @Test
@@ -51,38 +51,48 @@ public class CacheUpdateServiceTest {
     }
 
     @Test
-    void testUpdateCache() {
+    void testUpdateCache() throws Exception {
         String heroId = "620"; // Spider-Man's ID
-        when(restTemplate.getForObject(anyString(), eq(String.class))).thenReturn(MOCK_RESPONSE);
+        Hero mockHero = ResponseGenerator.generateHero(MOCK_RESPONSE);
+        
+        when(externalAPIService.getHero(heroId)).thenReturn(mockHero);
+        when(cache.get(heroId, Hero.class)).thenReturn(null); // No cached value
 
         cacheUpdateService.addHeroToMonitor(heroId);
         cacheUpdateService.updateCache();
 
-        verify(restTemplate).getForObject(anyString(), eq(String.class));
-        verify(cache).put(eq(heroId), any(SearchResponse.class));
+        verify(externalAPIService).getHero(heroId);
+        verify(cache).put(eq(heroId), any(Hero.class));
+        verify(notificationService).notifyHeroUpdate(eq(heroId), any(Hero.class));
     }
 
     @Test
-    void testUpdateCacheWithError() {
+    void testUpdateCacheWithError() throws Exception {
         String heroId = "620"; // Spider-Man's ID
-        when(restTemplate.getForObject(anyString(), eq(String.class))).thenThrow(new RuntimeException("API Error"));
+        when(externalAPIService.getHero(heroId)).thenThrow(new RuntimeException("API Error"));
 
         cacheUpdateService.addHeroToMonitor(heroId);
         cacheUpdateService.updateCache();
 
-        verify(restTemplate).getForObject(anyString(), eq(String.class));
+        verify(externalAPIService).getHero(heroId);
         verify(cache, never()).put(anyString(), any());
+        // Verify the hero was removed from monitoring
+        // Note: Since monitoredHeroes is private, we can't directly verify it
     }
 
     @Test
-    void testUpdateCacheWithNoResults() {
+    void testUpdateCacheNoChanges() throws Exception {
         String heroId = "620"; // Spider-Man's ID
-        when(restTemplate.getForObject(anyString(), eq(String.class))).thenReturn("{\"response\":\"error\",\"results\":[]}");
+        Hero mockHero = ResponseGenerator.generateHero(MOCK_RESPONSE);
+        
+        when(externalAPIService.getHero(heroId)).thenReturn(mockHero);
+        when(cache.get(heroId, Hero.class)).thenReturn(mockHero); // Same hero in cache
 
         cacheUpdateService.addHeroToMonitor(heroId);
         cacheUpdateService.updateCache();
 
-        verify(restTemplate).getForObject(anyString(), eq(String.class));
+        verify(externalAPIService).getHero(heroId);
         verify(cache, never()).put(anyString(), any());
+        verify(notificationService, never()).notifyHeroUpdate(anyString(), any());
     }
 } 

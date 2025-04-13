@@ -22,36 +22,22 @@ import java.util.concurrent.TimeUnit;
 public class CacheUpdateService {
     private static final Logger logger = LoggerFactory.getLogger(CacheUpdateService.class);
 
-    @Value("${superhero.api.url}")
-    private String apiUrl;
-
-    @Value("${superhero.api.token}")
-    private String apiToken;
-
-    // Public setter for testing
-    public void setApiToken(String apiToken) {
-        this.apiToken = apiToken;
-    }
-
     @Value("${superhero.cache.update.interval:3600}")
     private long updateIntervalSeconds;
 
-    private final RestTemplate restTemplate;
     private final CacheManager cacheManager;
-    private final ObjectMapper objectMapper;
     private final Set<String> monitoredHeroes;
     private final NotificationServiceImpl notificationService;
+    private final ExternalAPIService externalAPIService;
 
     public CacheUpdateService(
-            RestTemplate restTemplate,
             CacheManager cacheManager,
-            NotificationServiceImpl notificationService
-           ) {
-        this.restTemplate = restTemplate;
+            NotificationServiceImpl notificationService,
+            ExternalAPIService externalAPIService) {
         this.cacheManager = cacheManager;
-        this.objectMapper = new ObjectMapper();
         this.monitoredHeroes = new ConcurrentSkipListSet<>();
         this.notificationService = notificationService;
+        this.externalAPIService = externalAPIService;
     }
 
     public void addHeroToMonitor(String heroName) {
@@ -71,39 +57,27 @@ public class CacheUpdateService {
         // Create a copy of monitoredHeroes to avoid concurrent modification
         for (String heroId : monitoredHeroes) {
             try {
-                String url = String.format("%s/%s/search/%s", apiUrl, apiToken, heroId);
-                String jsonResponse = restTemplate.getForObject(url, String.class);
-                JsonNode rootNode = objectMapper.readTree(jsonResponse);
+                // Get the current cached value
+                Hero cachedHero = cache.get(heroId, Hero.class);
 
-                if (rootNode.has("results") && rootNode.get("results").isArray() && rootNode.get("results").size() > 0) {
-                    // Get the current cached value
-                    SearchResponse cachedResponse = cache.get(heroId, SearchResponse.class);
+                // Get new hero data from external API
+                Hero newHero = externalAPIService.getHero(heroId);
 
-                    // Create new response
-                    SearchResponse newResponse = ResponseGenerator.createSearchResponse(heroId, jsonResponse);
-
-                    // If cached value exists and is different from new value, update the cache
-                    if (cachedResponse == null || !cachedResponse.equals(newResponse)) {
-                        cache.put(heroId, newResponse);
-                        logger.info("Updated cache for hero: {}", heroId);
-                        
-                        // Notify subscribers about the update
-                        for (Hero hero : newResponse.getResultsList()) {
-                            notificationService.notifyHeroUpdate(
-                                heroId,
-                                hero
-                            );
-                        }
-                    } else {
-                        logger.debug("No changes detected for hero: {}", heroId);
-                    }
+                // If cached value exists and is different from new value, update the cache
+                if (cachedHero == null || !cachedHero.equals(newHero)) {
+                    cache.put(heroId, newHero);
+                    logger.info("Updated cache for hero: {}", heroId);
+                    
+                    // Notify subscribers about the update
+                    notificationService.notifyHeroUpdate(heroId, newHero);
                 } else {
-                    // If no hero found, remove from monitoring
-                    monitoredHeroes.remove(heroId);
-                    logger.info("Removed hero from monitoring (not found): {}", heroId);
+                    logger.debug("No changes detected for hero: {}", heroId);
                 }
             } catch (Exception e) {
                 logger.error("Error updating cache for hero: {}", heroId, e);
+                // If there's an error getting the hero, remove it from monitoring
+                monitoredHeroes.remove(heroId);
+                logger.info("Removed hero from monitoring due to error: {}", heroId);
             }
         }
 

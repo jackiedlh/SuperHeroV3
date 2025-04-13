@@ -4,9 +4,13 @@ import java.util.Arrays;
 import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
+import static org.mockito.ArgumentMatchers.anyString;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import static org.mockito.Mockito.mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
@@ -18,6 +22,7 @@ import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 
 import com.example.superheroproxy.config.TestRestTemplate;
 import com.example.superheroproxy.proto.SearchResponse;
+import com.example.superheroproxy.utils.ResponseGenerator;
 
 @SpringJUnitConfig(classes = SuperheroSearchServiceTest.TestConfig.class)
 class SuperheroSearchServiceTest {
@@ -25,6 +30,8 @@ class SuperheroSearchServiceTest {
     @Configuration
     @EnableCaching
     static class TestConfig {
+        private String mockResponse = "{\"response\":\"success\",\"results-for\":\"spider-man\",\"results\":[{\"id\":\"620\",\"name\":\"Spider-Man\",\"powerstats\":{\"intelligence\":\"90\",\"strength\":\"55\",\"speed\":\"67\"},\"biography\":{\"full-name\":\"Peter Parker\",\"publisher\":\"Marvel Comics\"},\"image\":{\"url\":\"https://www.superherodb.com/pictures2/portraits/10/100/133.jpg\"}}]}";
+
         @Bean
         CacheManager cacheManager() {
             SimpleCacheManager cacheManager = new SimpleCacheManager();
@@ -37,7 +44,7 @@ class SuperheroSearchServiceTest {
         @Bean
         TestRestTemplate restTemplate() {
             TestRestTemplate template = new TestRestTemplate();
-            template.setResponse("{\"response\":\"success\",\"results-for\":\"spider-man\",\"results\":[{\"id\":\"620\",\"name\":\"Spider-Man\",\"powerstats\":{\"intelligence\":\"90\",\"strength\":\"55\",\"speed\":\"67\"},\"biography\":{\"full-name\":\"Peter Parker\",\"publisher\":\"Marvel Comics\"},\"image\":{\"url\":\"https://www.superherodb.com/pictures2/portraits/10/100/133.jpg\"}}]}");
+            template.setResponse(mockResponse);
             return template;
         }
 
@@ -52,12 +59,27 @@ class SuperheroSearchServiceTest {
         }
 
         @Bean
+        ExternalAPIService externalAPIService() {
+            ExternalAPIService mockService = mock(ExternalAPIService.class);
+            try {
+                when(mockService.searchHero(anyString())).thenAnswer(invocation -> {
+                    String name = invocation.getArgument(0);
+                    return ResponseGenerator.createSearchResponse(name, mockResponse);
+                });
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+            return mockService;
+        }
+
+        @Bean
         SuperheroSearchService superheroSearchService(
                 TestRestTemplate restTemplate, 
                 CacheUpdateService cacheUpdateService,
                 NotificationServiceImpl notificationService,
-                CacheManager cacheManager) {
-            SuperheroSearchService service = new SuperheroSearchService(restTemplate, cacheUpdateService, notificationService);
+                CacheManager cacheManager,
+                ExternalAPIService externalAPIService) {
+            SuperheroSearchService service = new SuperheroSearchService(restTemplate, cacheUpdateService, notificationService, externalAPIService);
             service.setApiToken("test-token");
             service.setCacheManager(cacheManager);
             return service;
@@ -79,6 +101,9 @@ class SuperheroSearchServiceTest {
     @Autowired
     private NotificationServiceImpl notificationService;
 
+    @Autowired
+    private ExternalAPIService externalAPIService;
+
     @BeforeEach
     void setUp() {
         // Setup API response
@@ -92,13 +117,13 @@ class SuperheroSearchServiceTest {
         // First request (cache miss)
         SearchResponse response1 = superheroSearchService.searchHero("spider-man");
         // Verify that the search API was called once
-        assertEquals(1, restTemplate.getCallCount());
+        verify(externalAPIService).searchHero("spider-man");
 
         // Second request (cache hit for individual heroes, cache also hit for search)
         SearchResponse response2 = superheroSearchService.searchHero("spider-man");
         
-        // Verify that the search API was called twice (since we cache search results)
-        assertEquals(1, restTemplate.getCallCount());
+        // Verify that the search API was called only once (since we cache search results)
+        verify(externalAPIService).searchHero("spider-man");
 
         // Verify response content
         assertEquals(response1.getResponse(), response2.getResponse());
@@ -111,13 +136,13 @@ class SuperheroSearchServiceTest {
         // First request with mixed case (cache miss)
         SearchResponse response1 = superheroSearchService.searchHero("Spider-Man");
         // Verify that the search API was called once
-        assertEquals(1, restTemplate.getCallCount());
+        verify(externalAPIService).searchHero("Spider-Man".toLowerCase());
 
-        // Second request with lowercase (cache hit for individual heroes, and serch cached too)
+        // Second request with lowercase (cache hit for individual heroes, and search cached too)
         SearchResponse response2 = superheroSearchService.searchHero("spider-man");
         
-        // Verify that the search API was called once (since we cache search results)
-        assertEquals(1, restTemplate.getCallCount());
+        // Verify that the search API was called only once (since we cache search results)
+        verify(externalAPIService).searchHero("Spider-Man".toLowerCase());
 
         // Verify response content
         assertEquals(response1.getResponse(), response2.getResponse());
