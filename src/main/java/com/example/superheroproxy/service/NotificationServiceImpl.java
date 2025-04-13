@@ -56,7 +56,7 @@ public class NotificationServiceImpl extends NotificationServiceGrpc.Notificatio
         // If specific heroes are requested, add to their subscriber lists
         if (!request.getHeroIdsList().isEmpty()) {
             for (String heroId : request.getHeroIdsList()) {
-                heroSubscribers.computeIfAbsent(heroId, k -> new ArrayList<>())
+                heroSubscribers.computeIfAbsent(heroId, k -> new CopyOnWriteArrayList<>())
                         .add(wrappedObserver);
             }
         } else {
