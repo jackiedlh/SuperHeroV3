@@ -1,10 +1,9 @@
 package com.example.superheroproxy;
 
+import org.junit.jupiter.api.AfterEach;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -72,10 +71,14 @@ public class SuperheroProxyTest {
             assertEquals("Batman", response.getResultsFor());
             assertTrue(response.getResultsCount() > 0);
 
-            // Verify cache hit
+            // Verify cache hit for each hero by ID
             var cache = cacheManager.getCache("superheroCache");
             assertNotNull(cache);
-            assertNotNull(cache.get("batman"));
+            
+            // Check that each hero in the response is cached by their ID
+            for (Hero hero : response.getResultsList()) {
+                assertNotNull(cache.get(hero.getId()), "Hero with ID " + hero.getId() + " should be cached");
+            }
             
             // Print response details
             System.out.println("Response: " + response.getResponse());

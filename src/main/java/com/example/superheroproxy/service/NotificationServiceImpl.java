@@ -1,19 +1,21 @@
 package com.example.superheroproxy.service;
 
-import com.example.superheroproxy.proto.Hero;
-import com.example.superheroproxy.proto.HeroUpdate;
-import com.example.superheroproxy.proto.NotificationServiceGrpc;
-import com.example.superheroproxy.proto.SubscribeRequest;
-import io.grpc.stub.StreamObserver;
-import net.devh.boot.grpc.server.service.GrpcService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.example.superheroproxy.proto.Hero;
+import com.example.superheroproxy.proto.HeroUpdate;
+import com.example.superheroproxy.proto.NotificationServiceGrpc;
+import com.example.superheroproxy.proto.SubscribeRequest;
+
+import io.grpc.stub.StreamObserver;
+import net.devh.boot.grpc.server.service.GrpcService;
 
 @GrpcService
 public class NotificationServiceImpl extends NotificationServiceGrpc.NotificationServiceImplBase {
@@ -52,9 +54,9 @@ public class NotificationServiceImpl extends NotificationServiceGrpc.Notificatio
         };
         
         // If specific heroes are requested, add to their subscriber lists
-        if (!request.getHeroNamesList().isEmpty()) {
-            for (String heroName : request.getHeroNamesList()) {
-                heroSubscribers.computeIfAbsent(heroName.toLowerCase(), k -> new ArrayList<>())
+        if (!request.getHeroIdsList().isEmpty()) {
+            for (String heroId : request.getHeroIdsList()) {
+                heroSubscribers.computeIfAbsent(heroId, k -> new ArrayList<>())
                         .add(wrappedObserver);
             }
         } else {
@@ -63,15 +65,16 @@ public class NotificationServiceImpl extends NotificationServiceGrpc.Notificatio
         }
     }
 
-    public void notifyHeroUpdate(String heroName, Hero hero) {
-        logger.debug("Notifying subscribers update for hero: {}", heroName);
+    public void notifyHeroUpdate(String heroId, Hero hero) {
+        logger.debug("Notifying subscribers update for hero ID: {}", heroId);
         
         HeroUpdate update = HeroUpdate.newBuilder()
+                .setHeroId(heroId)
                 .setHero(hero)
                 .build();
 
         // Notify specific hero subscribers
-        List<StreamObserver<HeroUpdate>> specificSubscribers = heroSubscribers.get(heroName.toLowerCase());
+        List<StreamObserver<HeroUpdate>> specificSubscribers = heroSubscribers.get(heroId);
         if (specificSubscribers != null) {
             specificSubscribers.forEach(subscriber -> {
                 try {
@@ -99,6 +102,6 @@ public class NotificationServiceImpl extends NotificationServiceGrpc.Notificatio
         allSubscribers.remove(subscriber);
 
         // Remove from specific hero subscribers
-        heroSubscribers.forEach((heroName, subscribers) -> subscribers.remove(subscriber));
+        heroSubscribers.forEach((heroId, subscribers) -> subscribers.remove(subscriber));
     }
 } 

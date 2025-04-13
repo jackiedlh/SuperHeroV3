@@ -16,12 +16,12 @@ service NotificationService {
 
 // The request message containing the hero names to subscribe to
 message SubscribeRequest {
-  repeated string hero_names = 1;
+  repeated string hero_ids = 1;
 }
 
 // The response message containing the hero update
 message HeroUpdate {
-  string hero_name = 1;
+  string hero_id = 1;
   superhero.Hero hero = 2;
 }
 

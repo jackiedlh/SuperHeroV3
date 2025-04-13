@@ -1,9 +1,6 @@
 package com.example.superheroproxy.client;
 
-import com.example.superheroproxy.proto.HeroUpdate;
-import com.example.superheroproxy.proto.NotificationServiceGrpc;
-import com.example.superheroproxy.proto.SearchResponse;
-import com.example.superheroproxy.proto.SubscribeRequest;
+import com.example.superheroproxy.proto.*;
 import com.example.superheroproxy.service.SuperheroSearchService;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -47,16 +44,21 @@ public class SuperheroProxyClient {
         return superheroSearchService.searchHero(name);
     }
 
+    public Hero getHero(String id) {
+        logger.info("Get hero: {}", id);
+        return superheroSearchService.getHero(id);
+    }
+
     /**
      * Subscribe to updates for specific heroes
-     * @param heroNames List of hero names to subscribe to
+     * @param heroIds List of hero IDs to subscribe to
      * @param updateHandler Handler for processing hero updates
      */
-    public void subscribeToUpdates(List<String> heroNames, HeroUpdateHandler updateHandler) {
-        logger.info("Subscribing to updates for heroes: {}", heroNames);
+    public void subscribeToUpdates(List<String> heroIds, HeroUpdateHandler updateHandler) {
+        logger.info("Subscribing to updates for hero IDs: {}", heroIds);
         
         SubscribeRequest request = SubscribeRequest.newBuilder()
-                .addAllHeroNames(heroNames)
+                .addAllHeroIds(heroIds)
                 .build();
 
         notificationStub.subscribeToUpdates(request, new StreamObserver<>() {

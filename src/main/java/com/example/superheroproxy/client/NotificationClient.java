@@ -32,11 +32,11 @@ public class NotificationClient {
         this.asyncStub = NotificationServiceGrpc.newStub(channel);
     }
 
-    public void subscribeToUpdates(List<String> heroNames, StreamObserver<HeroUpdate> responseObserver) {
-        logger.info("Subscribing to updates for heroes: {}", heroNames);
+    public void subscribeToUpdates(List<String> heroIds, StreamObserver<HeroUpdate> responseObserver) {
+        logger.info("Subscribing to updates for hero IDs: {}", heroIds);
         
         SubscribeRequest request = SubscribeRequest.newBuilder()
-                .addAllHeroNames(heroNames)
+                .addAllHeroIds(heroIds)
                 .build();
 
         asyncStub.subscribeToUpdates(request, responseObserver);

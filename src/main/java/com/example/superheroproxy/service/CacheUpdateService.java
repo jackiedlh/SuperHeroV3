@@ -69,41 +69,41 @@ public class CacheUpdateService {
         }
 
         // Create a copy of monitoredHeroes to avoid concurrent modification
-        for (String heroName : monitoredHeroes) {
+        for (String heroId : monitoredHeroes) {
             try {
-                String url = String.format("%s/%s/search/%s", apiUrl, apiToken, heroName);
+                String url = String.format("%s/%s/search/%s", apiUrl, apiToken, heroId);
                 String jsonResponse = restTemplate.getForObject(url, String.class);
                 JsonNode rootNode = objectMapper.readTree(jsonResponse);
 
                 if (rootNode.has("results") && rootNode.get("results").isArray() && rootNode.get("results").size() > 0) {
                     // Get the current cached value
-                    SearchResponse cachedResponse = cache.get(heroName, SearchResponse.class);
+                    SearchResponse cachedResponse = cache.get(heroId, SearchResponse.class);
 
                     // Create new response
-                    SearchResponse newResponse = ResponseGenerator.createSearchResponse(heroName, rootNode);
+                    SearchResponse newResponse = ResponseGenerator.createSearchResponse(heroId, jsonResponse);
 
                     // If cached value exists and is different from new value, update the cache
                     if (cachedResponse == null || !cachedResponse.equals(newResponse)) {
-                        cache.put(heroName, newResponse);
-                        logger.info("Updated cache for hero: {}", heroName);
+                        cache.put(heroId, newResponse);
+                        logger.info("Updated cache for hero: {}", heroId);
                         
                         // Notify subscribers about the update
                         for (Hero hero : newResponse.getResultsList()) {
                             notificationService.notifyHeroUpdate(
-                                heroName,
+                                heroId,
                                 hero
                             );
                         }
                     } else {
-                        logger.debug("No changes detected for hero: {}", heroName);
+                        logger.debug("No changes detected for hero: {}", heroId);
                     }
                 } else {
                     // If no hero found, remove from monitoring
-                    monitoredHeroes.remove(heroName);
-                    logger.info("Removed hero from monitoring (not found): {}", heroName);
+                    monitoredHeroes.remove(heroId);
+                    logger.info("Removed hero from monitoring (not found): {}", heroId);
                 }
             } catch (Exception e) {
-                logger.error("Error updating cache for hero: {}", heroName, e);
+                logger.error("Error updating cache for hero: {}", heroId, e);
             }
         }
 
@@ -119,12 +119,12 @@ public class CacheUpdateService {
         }
 
         // Create a copy of monitoredHeroes to avoid concurrent modification
-        for (String heroName : new ConcurrentSkipListSet<>(monitoredHeroes)) {
-            Cache.ValueWrapper value = cache.get(heroName);
+        for (String heroId : new ConcurrentSkipListSet<>(monitoredHeroes)) {
+            Cache.ValueWrapper value = cache.get(heroId);
             if (value == null) {
                 // Hero is not in cache, remove from monitoring
-                monitoredHeroes.remove(heroName);
-                logger.info("Removed hero from monitoring (cache evicted): {}", heroName);
+                monitoredHeroes.remove(heroId);
+                logger.info("Removed hero from monitoring (cache evicted): {}", heroId);
             }
         }
     }

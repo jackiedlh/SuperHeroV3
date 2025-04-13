@@ -1,16 +1,20 @@
 package com.example.superheroproxy.service;
 
-import com.example.superheroproxy.proto.SearchResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import org.mockito.Mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import org.mockito.MockitoAnnotations;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.web.client.RestTemplate;
 
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import com.example.superheroproxy.proto.SearchResponse;
 
 public class CacheUpdateServiceTest {
 
@@ -39,8 +43,8 @@ public class CacheUpdateServiceTest {
 
     @Test
     void testAddHeroToMonitor() {
-        String heroName = "spiderman";
-        cacheUpdateService.addHeroToMonitor(heroName);
+        String heroId = "620"; // Spider-Man's ID
+        cacheUpdateService.addHeroToMonitor(heroId);
         // Verify the hero was added to monitoredHeroes
         // Note: Since monitoredHeroes is private, we can't directly verify it
         // Instead, we'll verify the behavior in updateCache
@@ -48,22 +52,22 @@ public class CacheUpdateServiceTest {
 
     @Test
     void testUpdateCache() {
-        String heroName = "spiderman";
+        String heroId = "620"; // Spider-Man's ID
         when(restTemplate.getForObject(anyString(), eq(String.class))).thenReturn(MOCK_RESPONSE);
 
-        cacheUpdateService.addHeroToMonitor(heroName);
+        cacheUpdateService.addHeroToMonitor(heroId);
         cacheUpdateService.updateCache();
 
         verify(restTemplate).getForObject(anyString(), eq(String.class));
-        verify(cache).put(eq(heroName), any(SearchResponse.class));
+        verify(cache).put(eq(heroId), any(SearchResponse.class));
     }
 
     @Test
     void testUpdateCacheWithError() {
-        String heroName = "spiderman";
+        String heroId = "620"; // Spider-Man's ID
         when(restTemplate.getForObject(anyString(), eq(String.class))).thenThrow(new RuntimeException("API Error"));
 
-        cacheUpdateService.addHeroToMonitor(heroName);
+        cacheUpdateService.addHeroToMonitor(heroId);
         cacheUpdateService.updateCache();
 
         verify(restTemplate).getForObject(anyString(), eq(String.class));
@@ -72,10 +76,10 @@ public class CacheUpdateServiceTest {
 
     @Test
     void testUpdateCacheWithNoResults() {
-        String heroName = "spiderman";
+        String heroId = "620"; // Spider-Man's ID
         when(restTemplate.getForObject(anyString(), eq(String.class))).thenReturn("{\"response\":\"error\",\"results\":[]}");
 
-        cacheUpdateService.addHeroToMonitor(heroName);
+        cacheUpdateService.addHeroToMonitor(heroId);
         cacheUpdateService.updateCache();
 
         verify(restTemplate).getForObject(anyString(), eq(String.class));

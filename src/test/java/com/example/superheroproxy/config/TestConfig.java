@@ -13,7 +13,7 @@ public class TestConfig {
 
     @Bean
     public CacheManager cacheManager() {
-        return new CaffeineCacheManager("superheroCache");
+        return new CaffeineCacheManager("superheroCache", "heroSearchCache");
     }
 
     @Bean

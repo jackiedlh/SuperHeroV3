@@ -1,5 +1,6 @@
 package com.example.superheroproxy.service;
 
+import com.example.superheroproxy.proto.Hero;
 import com.example.superheroproxy.proto.SearchResponse;
 import com.example.superheroproxy.utils.ResponseGenerator;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -47,25 +48,54 @@ public class SuperheroSearchService {
         this.apiToken = apiToken;
     }
 
-    @Cacheable(value = "superheroCache", key = "#name.toLowerCase()")
+    @Cacheable(value = "heroSearchCache", key = "#name.toLowerCase()")
     public SearchResponse searchHero(String name) {
+        logger.info("Cache miss for hero search: {}", name);
+        String url = String.format("%s/%s/search/%s", baseUrl, apiToken, name);
+        logger.debug("Making request to: {}", url);
+
         try {
-            // Register the hero for monitoring
-            cacheUpdateService.addHeroToMonitor(name);
-            SearchResponse response = searchHeroInternal(name);
+            String response = restTemplate.getForObject(url, String.class);
+            SearchResponse searchResponse = ResponseGenerator.createSearchResponse(name, response);
             
-            // Notify subscribers about the initial data
-            if (response.getResultsCount() > 0) {
-                response.getResultsList().forEach(hero -> 
-                    notificationService.notifyHeroUpdate(name, hero)
-                );
-            }
+            // Notify about the search
+            //notificationService.notifySearch(name);
             
-            return response;
+            return searchResponse;
         } catch (Exception e) {
             logger.error("Error searching for hero: {}", name, e);
-            throw new RuntimeException("Failed to search for hero: " + name, e);
+            throw new RuntimeException("Error searching for hero", e);
         }
+    }
+
+    @Cacheable(value = "superheroCache", key = "#id")
+    public Hero getHero(String id) {
+        try {
+            // Register the hero for monitoring
+            cacheUpdateService.addHeroToMonitor(id);
+            Hero hero = getHeroInternal(id);
+
+            // Notify subscribers about the initial data
+            if (hero != null) {
+                notificationService.notifyHeroUpdate(id, hero);
+            }
+
+            return hero;
+        } catch (Exception e) {
+            logger.error("Error searching for hero: {}", id, e);
+            throw new RuntimeException("Failed to search for hero: " + id, e);
+        }
+    }
+
+    public Hero getHeroInternal(String id) throws Exception {
+        logger.info("Cache miss for hero id: {}", id);
+        String url = String.format("%s/%s/%s", baseUrl.trim(), apiToken.trim(), id);
+        logger.debug("Making request to URL: {}", url);
+
+        String jsonResponse = restTemplate.getForObject(url, String.class);
+        logger.debug("API Response: {}", jsonResponse);
+
+        return ResponseGenerator.generateHero(jsonResponse);
     }
 
     public SearchResponse searchHeroInternal(String name) throws Exception {

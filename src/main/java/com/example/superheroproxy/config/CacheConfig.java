@@ -12,6 +12,6 @@ public class CacheConfig {
 
     @Bean
     public CacheManager cacheManager() {
-        return new CaffeineCacheManager("superheroCache");
+        return new CaffeineCacheManager("superheroCache", "heroSearchCache");
     }
 } 

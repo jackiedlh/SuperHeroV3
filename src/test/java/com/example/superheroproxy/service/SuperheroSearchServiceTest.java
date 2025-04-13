@@ -1,16 +1,12 @@
 package com.example.superheroproxy.service;
 
+import java.util.Arrays;
 import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
@@ -19,8 +15,8 @@ import org.springframework.cache.support.SimpleCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
-import org.springframework.web.client.RestTemplate;
 
+import com.example.superheroproxy.config.TestRestTemplate;
 import com.example.superheroproxy.proto.SearchResponse;
 
 @SpringJUnitConfig(classes = SuperheroSearchServiceTest.TestConfig.class)
@@ -32,15 +28,17 @@ class SuperheroSearchServiceTest {
         @Bean
         CacheManager cacheManager() {
             SimpleCacheManager cacheManager = new SimpleCacheManager();
-            cacheManager.setCaches(Collections.singletonList(
-                new ConcurrentMapCache("superheroCache")
+            cacheManager.setCaches(Arrays.asList(
+                    new ConcurrentMapCache("superheroCache"), new ConcurrentMapCache("heroSearchCache")
             ));
             return cacheManager;
         }
 
         @Bean
-        RestTemplate restTemplate() {
-            return mock(RestTemplate.class);
+        TestRestTemplate restTemplate() {
+            TestRestTemplate template = new TestRestTemplate();
+            template.setResponse("{\"response\":\"success\",\"results-for\":\"spider-man\",\"results\":[{\"id\":\"620\",\"name\":\"Spider-Man\",\"powerstats\":{\"intelligence\":\"90\",\"strength\":\"55\",\"speed\":\"67\"},\"biography\":{\"full-name\":\"Peter Parker\",\"publisher\":\"Marvel Comics\"},\"image\":{\"url\":\"https://www.superherodb.com/pictures2/portraits/10/100/133.jpg\"}}]}");
+            return template;
         }
 
         @Bean
@@ -55,7 +53,7 @@ class SuperheroSearchServiceTest {
 
         @Bean
         SuperheroSearchService superheroSearchService(
-                RestTemplate restTemplate, 
+                TestRestTemplate restTemplate, 
                 CacheUpdateService cacheUpdateService,
                 NotificationServiceImpl notificationService,
                 CacheManager cacheManager) {
@@ -70,7 +68,7 @@ class SuperheroSearchServiceTest {
     private SuperheroSearchService superheroSearchService;
 
     @Autowired
-    private RestTemplate restTemplate;
+    private TestRestTemplate restTemplate;
 
     @Autowired
     private CacheManager cacheManager;
@@ -84,7 +82,7 @@ class SuperheroSearchServiceTest {
     @BeforeEach
     void setUp() {
         // Setup API response
-        when(restTemplate.getForObject(anyString(), eq(String.class))).thenReturn(
+        restTemplate.setResponse(
             "{\"response\":\"success\",\"results-for\":\"spider-man\",\"results\":[{\"id\":\"620\",\"name\":\"Spider-Man\",\"powerstats\":{\"intelligence\":\"90\",\"strength\":\"55\",\"speed\":\"67\"},\"biography\":{\"full-name\":\"Peter Parker\",\"publisher\":\"Marvel Comics\"},\"image\":{\"url\":\"https://www.superherodb.com/pictures2/portraits/10/100/133.jpg\"}}]}"
         );
     }
@@ -93,13 +91,14 @@ class SuperheroSearchServiceTest {
     void testSearchHero_CacheHit() throws Exception {
         // First request (cache miss)
         SearchResponse response1 = superheroSearchService.searchHero("spider-man");
-        verify(restTemplate, times(1)).getForObject(anyString(), eq(String.class));
+        // Verify that the search API was called once
+        assertEquals(1, restTemplate.getCallCount());
 
-        // Second request (cache hit)
+        // Second request (cache hit for individual heroes, cache also hit for search)
         SearchResponse response2 = superheroSearchService.searchHero("spider-man");
-
-        // Verify that the RestTemplate was only called once in total
-        verify(restTemplate, times(1)).getForObject(anyString(), eq(String.class));
+        
+        // Verify that the search API was called twice (since we cache search results)
+        assertEquals(1, restTemplate.getCallCount());
 
         // Verify response content
         assertEquals(response1.getResponse(), response2.getResponse());
@@ -111,13 +110,14 @@ class SuperheroSearchServiceTest {
     void testSearchHero_CaseInsensitive() throws Exception {
         // First request with mixed case (cache miss)
         SearchResponse response1 = superheroSearchService.searchHero("Spider-Man");
-        verify(restTemplate, times(1)).getForObject(anyString(), eq(String.class));
+        // Verify that the search API was called once
+        assertEquals(1, restTemplate.getCallCount());
 
-        // Second request with lowercase (cache hit)
+        // Second request with lowercase (cache hit for individual heroes, and serch cached too)
         SearchResponse response2 = superheroSearchService.searchHero("spider-man");
-
-        // Verify that the RestTemplate was only called once in total
-        verify(restTemplate, times(1)).getForObject(anyString(), eq(String.class));
+        
+        // Verify that the search API was called once (since we cache search results)
+        assertEquals(1, restTemplate.getCallCount());
 
         // Verify response content
         assertEquals(response1.getResponse(), response2.getResponse());
