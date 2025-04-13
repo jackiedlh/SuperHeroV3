@@ -3,8 +3,10 @@ package com.example.superheroproxy.controller;
 import com.example.superheroproxy.dto.HeroDto;
 import com.example.superheroproxy.dto.SearchResultDto;
 import com.example.superheroproxy.proto.Hero;
+import com.example.superheroproxy.proto.SearchRequest;
 import com.example.superheroproxy.proto.SearchResponse;
-import com.example.superheroproxy.service.SuperheroSearchService;
+import com.example.superheroproxy.service.SuperheroServiceProxy;
+import io.grpc.stub.StreamObserver;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
@@ -15,18 +17,20 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @RestController
 public class HeroController {
 
     private final CacheManager cacheManager;
-    private final SuperheroSearchService superheroSearchService;
+    private final SuperheroServiceProxy superheroServiceProxy;
 
     @Autowired
-    public HeroController(CacheManager cacheManager, SuperheroSearchService superheroSearchService) {
+    public HeroController(CacheManager cacheManager, SuperheroServiceProxy superheroServiceProxy) {
         this.cacheManager = cacheManager;
-        this.superheroSearchService = superheroSearchService;
+        this.superheroServiceProxy = superheroServiceProxy;
     }
 
     @GetMapping("/api/cache/keys")
@@ -107,7 +111,46 @@ public class HeroController {
     @GetMapping("/api/search")
     public ResponseEntity<List<SearchResultDto>> searchHero(@RequestParam String name) {
         try {
-            SearchResponse response = superheroSearchService.searchHero(name);
+            CountDownLatch latch = new CountDownLatch(1);
+            SearchResponse[] responseHolder = new SearchResponse[1];
+            Exception[] errorHolder = new Exception[1];
+
+            SearchRequest request = SearchRequest.newBuilder()
+                .setName(name)
+                .build();
+
+            superheroServiceProxy.searchHero(request, new StreamObserver<SearchResponse>() {
+                @Override
+                public void onNext(SearchResponse response) {
+                    responseHolder[0] = response;
+                }
+
+                @Override
+                public void onError(Throwable t) {
+                    errorHolder[0] = new Exception(t);
+                    latch.countDown();
+                }
+
+                @Override
+                public void onCompleted() {
+                    latch.countDown();
+                }
+            });
+
+            // Wait for the response with a timeout
+            if (!latch.await(5, TimeUnit.SECONDS)) {
+                return ResponseEntity.badRequest().build();
+            }
+
+            if (errorHolder[0] != null) {
+                throw errorHolder[0];
+            }
+
+            SearchResponse response = responseHolder[0];
+            if (response == null) {
+                return ResponseEntity.badRequest().build();
+            }
+
             List<SearchResultDto> results = response.getResultsList().stream()
                 .map(hero -> new SearchResultDto(hero.getId(), hero.getName()))
                 .collect(Collectors.toList());

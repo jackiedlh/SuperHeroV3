@@ -365,8 +365,8 @@ async function searchHero() {
         return;
     }
 
-    const searchResults = document.getElementById('searchResults');
-    searchResults.innerHTML = '<p>Searching...</p>';
+    const searchResultsBody = document.getElementById('searchResultsBody');
+    searchResultsBody.innerHTML = '<tr><td colspan="2">Searching...</td></tr>';
 
     try {
         const response = await fetch(`${baseUrl}/api/search?name=${encodeURIComponent(searchTerm)}`);
@@ -376,19 +376,19 @@ async function searchHero() {
         
         const data = await response.json();
         if (data.length === 0) {
-            searchResults.innerHTML = '<p>No heroes found</p>';
+            searchResultsBody.innerHTML = '<tr><td colspan="2">No heroes found</td></tr>';
             return;
         }
 
-        searchResults.innerHTML = data.map(hero => `
-            <div class="search-result-item" onclick="selectHero(${hero.id})">
-                <strong>${hero.name}</strong>
-                <p>ID: ${hero.id}</p>
-            </div>
+        searchResultsBody.innerHTML = data.map(hero => `
+            <tr onclick="selectHero('${hero.id}')">
+                <td>${hero.id}</td>
+                <td>${hero.name}</td>
+            </tr>
         `).join('');
     } catch (error) {
         console.error('Search error:', error);
-        searchResults.innerHTML = '<p>Error searching for heroes</p>';
+        searchResultsBody.innerHTML = '<tr><td colspan="2">Error searching for heroes</td></tr>';
     }
 }
 
