@@ -108,6 +108,9 @@
         .hero-details tr:hover {
             background-color: #f5f5f5;
         }
+        .cache-keys {
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
@@ -124,11 +127,19 @@
                 <h3>Subscribed Heroes</h3>
                 <div id="subscriptionList"></div>
             </div>
+            <div id="subscribedHeroDetails" class="hero-details">
+                <h3>Subscribed Hero Details</h3>
+                <p>Click on a hero ID to view details</p>
+            </div>
             <div id="status" class="status disconnected">Disconnected</div>
             <div id="updates"></div>
         </div>
         <div class="right-panel">
             <h3>Cache</h3>
+            <div>
+                <button onclick="showCacheKeys()">Show All Cache Keys</button>
+                <div id="cacheKeys" class="cache-keys"></div>
+            </div>
             <div id="heroDetails" class="hero-details">
                 <p>Click on a hero ID in the list to view details</p>
             </div>

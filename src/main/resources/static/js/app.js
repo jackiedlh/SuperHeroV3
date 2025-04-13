@@ -17,15 +17,15 @@ function updateSubscriptionList() {
         const item = document.createElement('div');
         item.className = 'subscription-item';
         item.innerHTML = `
-            <span onclick="showHeroDetails('${heroId}')">Hero ID: ${heroId}</span>
+            <span onclick="showSubscribedHeroDetails('${heroId}')">Hero ID: ${heroId}</span>
             <button onclick="unsubscribeHero('${heroId}')">x</button>
         `;
         subscriptionList.appendChild(item);
     });
 }
 
-function showHeroDetails(heroId) {
-    const heroDetails = document.getElementById('heroDetails');
+function showSubscribedHeroDetails(heroId) {
+    const heroDetails = document.getElementById('subscribedHeroDetails');
     heroDetails.innerHTML = '<h3>Loading hero details...</h3>';
     
     fetch(`${baseUrl}/api/${heroId}`)
@@ -37,6 +37,7 @@ function showHeroDetails(heroId) {
         })
         .then(hero => {
             heroDetails.innerHTML = `
+                <h3>Subscribed Hero Details</h3>
                 <table>
                     <tr>
                         <th>ID</th>
@@ -45,8 +46,8 @@ function showHeroDetails(heroId) {
                     <tr>
                         <th>Name</th>
                         <td>
-                            <span id="heroName">${hero.name}</span>
-                            <button onclick="editHeroName('${hero.id}')">Edit</button>
+                            <span id="subscribedHeroName">${hero.name}</span>
+                            <button onclick="editSubscribedHeroName('${hero.id}')">Edit</button>
                         </td>
                     </tr>
                 </table>
@@ -60,19 +61,19 @@ function showHeroDetails(heroId) {
         });
 }
 
-function editHeroName(heroId) {
-    const heroNameElement = document.getElementById('heroName');
+function editSubscribedHeroName(heroId) {
+    const heroNameElement = document.getElementById('subscribedHeroName');
     const currentName = heroNameElement.textContent;
     
     heroNameElement.innerHTML = `
-        <input type="text" id="nameInput" value="${currentName}">
-        <button onclick="saveHeroName('${heroId}')">Save</button>
-        <button onclick="cancelEdit()">Cancel</button>
+        <input type="text" id="subscribedNameInput" value="${currentName}">
+        <button onclick="saveSubscribedHeroName('${heroId}')">Save</button>
+        <button onclick="cancelSubscribedEdit()">Cancel</button>
     `;
 }
 
-function saveHeroName(heroId) {
-    const newName = document.getElementById('nameInput').value;
+function saveSubscribedHeroName(heroId) {
+    const newName = document.getElementById('subscribedNameInput').value;
     
     fetch(`${baseUrl}/api/${heroId}/name`, {
         method: 'POST',
@@ -88,17 +89,19 @@ function saveHeroName(heroId) {
         return response.json();
     })
     .then(hero => {
-        document.getElementById('heroName').innerHTML = hero.name;
+        document.getElementById('subscribedHeroName').innerHTML = hero.name;
         addUpdate(`Updated hero name to: ${hero.name}`);
+        showSubscribedHeroDetails(heroId); // Refresh the details
     })
     .catch(error => {
         addUpdate('Error updating hero name: ' + error.message, true);
-        showHeroDetails(heroId); // Reload the original data
+        showSubscribedHeroDetails(heroId); // Reload the original data
     });
 }
 
-function cancelEdit() {
-    showHeroDetails(document.getElementById('heroId').value);
+function cancelSubscribedEdit() {
+    const heroId = document.getElementById('heroId').value;
+    showSubscribedHeroDetails(heroId);
 }
 
 function subscribe() {
@@ -118,7 +121,7 @@ function subscribe() {
     reconnectAttempts = 0;
     subscribedHeroes.add(heroId);
     updateSubscriptionList();
-    showHeroDetails(heroId);
+    showSubscribedHeroDetails(heroId);
 
     eventSource.onmessage = function(event) {
         try {
@@ -194,4 +197,116 @@ function addUpdate(message, isError = false) {
     update.className = 'update' + (isError ? ' error' : '');
     update.textContent = message;
     document.getElementById('updates').appendChild(update);
+}
+
+function showCacheKeys() {
+    const cacheKeysElement = document.getElementById('cacheKeys');
+    cacheKeysElement.innerHTML = '<p>Loading cache keys...</p>';
+    
+    fetch(`${baseUrl}/api/cache/keys`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to fetch cache keys');
+            }
+            return response.json();
+        })
+        .then(keys => {
+            if (keys.length === 0) {
+                cacheKeysElement.innerHTML = '<p>No keys in cache</p>';
+                return;
+            }
+            
+            const keysList = document.createElement('ul');
+            keys.forEach(key => {
+                const li = document.createElement('li');
+                li.innerHTML = `<span onclick="showHeroDetails('${key}')" style="cursor: pointer;">${key}</span>`;
+                keysList.appendChild(li);
+            });
+            
+            cacheKeysElement.innerHTML = '';
+            cacheKeysElement.appendChild(keysList);
+        })
+        .catch(error => {
+            cacheKeysElement.innerHTML = `<p class="error">Error: ${error.message}</p>`;
+        });
+}
+
+function showHeroDetails(heroId) {
+    const heroDetails = document.getElementById('heroDetails');
+    heroDetails.innerHTML = '<h3>Loading hero details...</h3>';
+    
+    fetch(`${baseUrl}/api/${heroId}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Hero not found in cache');
+            }
+            return response.json();
+        })
+        .then(hero => {
+            heroDetails.innerHTML = `
+                <h3>Hero Details</h3>
+                <table>
+                    <tr>
+                        <th>ID</th>
+                        <td>${hero.id}</td>
+                    </tr>
+                    <tr>
+                        <th>Name</th>
+                        <td>
+                            <span id="heroName">${hero.name}</span>
+                            <button onclick="editHeroName('${hero.id}')">Edit</button>
+                        </td>
+                    </tr>
+                </table>
+            `;
+        })
+        .catch(error => {
+            heroDetails.innerHTML = `
+                <h3>Error loading hero details</h3>
+                <p>${error.message}</p>
+            `;
+        });
+}
+
+function editHeroName(heroId) {
+    const heroNameElement = document.getElementById('heroName');
+    const currentName = heroNameElement.textContent;
+    
+    heroNameElement.innerHTML = `
+        <input type="text" id="nameInput" value="${currentName}">
+        <button onclick="saveHeroName('${heroId}')">Save</button>
+        <button onclick="cancelEdit()">Cancel</button>
+    `;
+}
+
+function saveHeroName(heroId) {
+    const newName = document.getElementById('nameInput').value;
+    
+    fetch(`${baseUrl}/api/${heroId}/name`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name: newName })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to update name');
+        }
+        return response.json();
+    })
+    .then(hero => {
+        document.getElementById('heroName').innerHTML = hero.name;
+        addUpdate(`Updated hero name to: ${hero.name}`);
+        showHeroDetails(heroId); // Refresh the details
+    })
+    .catch(error => {
+        addUpdate('Error updating hero name: ' + error.message, true);
+        showHeroDetails(heroId); // Reload the original data
+    });
+}
+
+function cancelEdit() {
+    const heroId = document.getElementById('heroId').value;
+    showHeroDetails(heroId);
 } 
