@@ -1,76 +1,86 @@
 package com.example.superheroproxy.service;
 
-import com.example.superheroproxy.proto.Hero;
-import com.example.superheroproxy.proto.SearchResponse;
-import com.example.superheroproxy.proto.UpdateType;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import com.example.superheroproxy.proto.Hero;
+import com.example.superheroproxy.proto.SearchResponse;
+import com.example.superheroproxy.proto.UpdateType;
+
+/**
+ * The core service that handles superhero data operations and caching.
+ * This service:
+ * - Manages the caching of hero search results and hero details
+ * - Coordinates with the external API service for data retrieval
+ * - Monitors hero data for updates
+ * - Notifies subscribers about hero changes
+ * 
+ * The service uses Spring's caching mechanism to improve performance
+ * and reduce external API calls. It also integrates with the notification
+ * system to keep clients updated about hero data changes.
+ */
 @Service
 public class SuperheroInnerService {
     private static final Logger logger = LoggerFactory.getLogger(SuperheroInnerService.class);
 
-    @Value("${superhero.api.token}")
-    private String apiToken;
-
-    @Value("${superhero.api.url}")
-    private String baseUrl;
-
-    private final RestTemplate restTemplate;
-    private final ObjectMapper objectMapper;
     private final CacheUpdateScheduleService cacheUpdateScheduleService;
     private final NotificationService notificationService;
-    private CacheManager cacheManager;
     private final ExternalApiService externalAPIService;
 
+    /**
+     * Constructs a new SuperheroInnerService with the required dependencies.
+     * 
+     * @param restTemplate The RestTemplate for making HTTP requests
+     * @param cacheUpdateScheduleService Service for managing cache updates
+     * @param notificationService Service for notifying clients about hero updates
+     * @param externalAPIService Service for interacting with the external superhero API
+     */
     public SuperheroInnerService(
             RestTemplate restTemplate,
             CacheUpdateScheduleService cacheUpdateScheduleService,
             NotificationService notificationService,
             ExternalApiService externalAPIService) {
-        this.restTemplate = restTemplate;
-        this.objectMapper = new ObjectMapper();
         this.cacheUpdateScheduleService = cacheUpdateScheduleService;
         this.notificationService = notificationService;
         this.externalAPIService = externalAPIService;
     }
 
-    // Public setter for testing
-    public void setCacheManager(CacheManager cacheManager) {
-        this.cacheManager = cacheManager;
-    }
-
-    // Public setter for testing
-    public void setApiToken(String apiToken) {
-        this.apiToken = apiToken;
-    }
-
+    /**
+     * Searches for hero IDs by name, with results cached for performance.
+     * The search is case-insensitive and uses Spring's caching mechanism.
+     * 
+     * @param name The hero name to search for
+     * @return A set of hero IDs matching the search criteria
+     * @throws RuntimeException if there's an error during the search
+     */
     @Cacheable(value = "heroSearchCache", key = "#name.toLowerCase()")
-    public SearchResponse searchHero(String name) {
-//        logger.info("Cache miss for hero search: {}", name);
-//        String url = String.format("%s/%s/search/%s", baseUrl, apiToken, name);
-//        logger.debug("Making request to: {}", url);
-
+    public Set<String> searchHeroIds(String name) {
         try {
-
             SearchResponse searchResponse = externalAPIService.searchHero(name);
-            
-            // Notify about the search
-            //notificationService.notifySearch(name);
-            
-            return searchResponse;
+            Set<String> ids = searchResponse.getResultsList().stream().map(e -> e.getId()).collect(Collectors.toSet());
+
+            return ids;
         } catch (Exception e) {
             logger.error("Error searching for hero: {}", name, e);
             throw new RuntimeException("Error searching for hero", e);
         }
     }
 
+    /**
+     * Retrieves detailed information about a specific hero by ID.
+     * The hero data is cached for performance and the hero is registered
+     * for monitoring updates.
+     * 
+     * @param id The ID of the hero to retrieve
+     * @return The Hero object containing detailed information
+     * @throws RuntimeException if there's an error retrieving the hero data
+     */
     @Cacheable(value = "superheroCache", key = "#id")
     public Hero getHero(String id) {
         try {
@@ -89,8 +99,4 @@ public class SuperheroInnerService {
             throw new RuntimeException("Failed to search for hero: " + id, e);
         }
     }
-
-
-
-
 } 

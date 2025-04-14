@@ -58,7 +58,7 @@ public class CacheUpdateScheduleServiceTest {
         when(cache.get(heroId, Hero.class)).thenReturn(null); // No cached value
 
         cacheUpdateScheduleService.addHeroToMonitor(heroId);
-        cacheUpdateScheduleService.updateCache();
+        cacheUpdateScheduleService.checkForUpdates();
 
         verify(externalAPIService).getHero(heroId);
         verify(cache).put(eq(heroId), any(Hero.class));
@@ -71,7 +71,7 @@ public class CacheUpdateScheduleServiceTest {
         when(externalAPIService.getHero(heroId)).thenThrow(new RuntimeException("API Error"));
 
         cacheUpdateScheduleService.addHeroToMonitor(heroId);
-        cacheUpdateScheduleService.updateCache();
+        cacheUpdateScheduleService.checkForUpdates();
 
         verify(externalAPIService).getHero(heroId);
         verify(cache, never()).put(anyString(), any());
@@ -88,7 +88,7 @@ public class CacheUpdateScheduleServiceTest {
         when(cache.get(heroId, Hero.class)).thenReturn(mockHero); // Same hero in cache
 
         cacheUpdateScheduleService.addHeroToMonitor(heroId);
-        cacheUpdateScheduleService.updateCache();
+        cacheUpdateScheduleService.checkForUpdates();
 
         verify(externalAPIService).getHero(heroId);
         verify(cache, never()).put(anyString(), any());

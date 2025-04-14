@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 @Component
@@ -39,9 +40,9 @@ public class SuperheroProxyClient {
      * @param name The hero name to search for
      * @return SearchResponse containing the hero information
      */
-    public SearchResponse searchHero(String name) {
+    public Set<String> searchHeroIds(String name) {
         logger.info("Searching for hero: {}", name);
-        return superheroInnerService.searchHero(name);
+        return superheroInnerService.searchHeroIds(name);
     }
 
     public Hero getHero(String id) {

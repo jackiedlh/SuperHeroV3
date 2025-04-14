@@ -1,13 +1,7 @@
 package com.example.superheroproxy.service;
 
-import java.util.Arrays;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.verify;
-import static org.mockito.ArgumentMatchers.anyString;
-
+import com.example.superheroproxy.config.TestRestTemplate;
+import com.example.superheroproxy.utils.ResponseGenerator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,9 +13,12 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 
-import com.example.superheroproxy.config.TestRestTemplate;
-import com.example.superheroproxy.proto.SearchResponse;
-import com.example.superheroproxy.utils.ResponseGenerator;
+import java.util.Arrays;
+import java.util.Set;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.*;
 
 @SpringJUnitConfig(classes = SuperheroInnerServiceTest.TestConfig.class)
 class SuperheroInnerServiceTest {
@@ -35,7 +32,8 @@ class SuperheroInnerServiceTest {
         CacheManager cacheManager() {
             SimpleCacheManager cacheManager = new SimpleCacheManager();
             cacheManager.setCaches(Arrays.asList(
-                    new ConcurrentMapCache("superheroCache"), new ConcurrentMapCache("heroSearchCache")
+                    new ConcurrentMapCache("superheroCache"), 
+                    new ConcurrentMapCache("heroSearchCache")
             ));
             return cacheManager;
         }
@@ -79,8 +77,6 @@ class SuperheroInnerServiceTest {
                 CacheManager cacheManager,
                 ExternalApiService externalAPIService) {
             SuperheroInnerService service = new SuperheroInnerService(restTemplate, cacheUpdateScheduleService, notificationService, externalAPIService);
-            service.setApiToken("test-token");
-            service.setCacheManager(cacheManager);
             return service;
         }
     }
@@ -105,47 +101,90 @@ class SuperheroInnerServiceTest {
 
     @BeforeEach
     void setUp() {
-        // Setup API response
+        // Clear caches before each test
+        cacheManager.getCache("superheroCache").clear();
+        cacheManager.getCache("heroSearchCache").clear();
+        
+        // Reset mock responses
         restTemplate.setResponse(
             "{\"response\":\"success\",\"results-for\":\"spider-man\",\"results\":[{\"id\":\"620\",\"name\":\"Spider-Man\",\"powerstats\":{\"intelligence\":\"90\",\"strength\":\"55\",\"speed\":\"67\"},\"biography\":{\"full-name\":\"Peter Parker\",\"publisher\":\"Marvel Comics\"},\"image\":{\"url\":\"https://www.superherodb.com/pictures2/portraits/10/100/133.jpg\"}}]}"
         );
     }
 
     @Test
-    void testSearchHero_CacheHit() throws Exception {
+    void testSearchHeroIds_Success() throws Exception {
         // First request (cache miss)
-        SearchResponse response1 = superheroInnerService.searchHero("spider-man");
+        Set<String> ids = superheroInnerService.searchHeroIds("spider-man");
+        
         // Verify that the search API was called once
         verify(externalAPIService).searchHero("spider-man");
-
-        // Second request (cache hit for individual heroes, cache also hit for search)
-        SearchResponse response2 = superheroInnerService.searchHero("spider-man");
         
-        // Verify that the search API was called only once (since we cache search results)
-        verify(externalAPIService).searchHero("spider-man");
-
         // Verify response content
-        assertEquals(response1.getResponse(), response2.getResponse());
-        assertEquals(response1.getResultsFor(), response2.getResultsFor());
-        assertEquals(response1.getResultsCount(), response2.getResultsCount());
+        assertNotNull(ids);
+        assertEquals(1, ids.size());
+        assertTrue(ids.contains("620"));
     }
 
     @Test
-    void testSearchHero_CaseInsensitive() throws Exception {
-        // First request with mixed case (cache miss)
-        SearchResponse response1 = superheroInnerService.searchHero("Spider-Man");
-        // Verify that the search API was called once
-        verify(externalAPIService).searchHero("Spider-Man".toLowerCase());
+    void testSearchHeroIds_CacheHit() throws Exception {
+        // First request (cache miss)
+        Set<String> ids1 = superheroInnerService.searchHeroIds("spider-man");
+        verify(externalAPIService).searchHero("spider-man");
 
-        // Second request with lowercase (cache hit for individual heroes, and search cached too)
-        SearchResponse response2 = superheroInnerService.searchHero("spider-man");
+        // Second request (cache hit)
+        Set<String> ids2 = superheroInnerService.searchHeroIds("spider-man");
         
-        // Verify that the search API was called only once (since we cache search results)
-        verify(externalAPIService).searchHero("Spider-Man".toLowerCase());
+        // Verify that the search API was called only once
+        verify(externalAPIService).searchHero("spider-man");
 
         // Verify response content
-        assertEquals(response1.getResponse(), response2.getResponse());
-        assertEquals(response1.getResultsFor(), response2.getResultsFor());
-        assertEquals(response1.getResultsCount(), response2.getResultsCount());
+        assertEquals(ids1, ids2);
+    }
+
+    @Test
+    void testSearchHeroIds_CaseInsensitive() throws Exception {
+        // First request with mixed case (cache miss)
+        Set<String> ids1 = superheroInnerService.searchHeroIds("Spider-Man");
+        verify(externalAPIService).searchHero("Spider-Man");
+
+        // Second request with lowercase (cache hit)
+        Set<String> ids2 = superheroInnerService.searchHeroIds("spider-man");
+        
+        // Verify that the search API was called only once
+        verify(externalAPIService).searchHero("Spider-Man");
+
+        // Verify response content
+        assertEquals(ids1, ids2);
+    }
+
+    @Test
+    void testSearchHeroIds_Error() throws Exception {
+        // Mock an error response
+        when(externalAPIService.searchHero(anyString())).thenThrow(new RuntimeException("API Error"));
+
+        // Attempt to search
+        Exception exception = assertThrows(RuntimeException.class, () -> {
+            superheroInnerService.searchHeroIds("spider-man");
+        });
+
+        // Verify error handling
+        assertTrue(exception.getMessage().contains("Error searching for hero"));
+        verify(externalAPIService).searchHero("spider-man");
+    }
+
+    @Test
+    void testSearchHeroIds_EmptyResults() throws Exception {
+        // Mock empty results response
+        String emptyResponse = "{\"response\":\"success\",\"results-for\":\"nonexistent\",\"results\":[]}";
+        when(externalAPIService.searchHero(anyString())).thenReturn(
+            ResponseGenerator.createSearchResponse("nonexistent", emptyResponse)
+        );
+
+        // Attempt to search
+        Set<String> ids = superheroInnerService.searchHeroIds("nonexistent");
+        
+        // Verify response
+        assertNotNull(ids);
+        assertTrue(ids.isEmpty());
     }
 } 

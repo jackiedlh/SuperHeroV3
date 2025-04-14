@@ -5,24 +5,48 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-import com.example.superheroproxy.proto.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.grpc.stub.StreamObserver;
+import com.example.superheroproxy.proto.Hero;
+import com.example.superheroproxy.proto.HeroUpdate;
+import com.example.superheroproxy.proto.NotificationServiceGrpc;
+import com.example.superheroproxy.proto.SubscribeRequest;
+import com.example.superheroproxy.proto.UpdateType;
+
 import io.grpc.stub.ServerCallStreamObserver;
+import io.grpc.stub.StreamObserver;
 import net.devh.boot.grpc.server.service.GrpcService;
 
+/**
+ * A gRPC service that handles real-time notifications for hero updates.
+ * This service allows clients to subscribe to updates for specific heroes or all heroes,
+ * and notifies them when changes occur.
+ * 
+ * The service maintains two types of subscribers:
+ * 1. Specific hero subscribers - clients interested in updates for particular heroes
+ * 2. All subscribers - clients interested in updates for all heroes
+ * 
+ * Uses thread-safe collections (ConcurrentHashMap and CopyOnWriteArrayList) to handle
+ * concurrent access from multiple clients.
+ */
 @GrpcService
 public class NotificationService extends NotificationServiceGrpc.NotificationServiceImplBase {
     private static final Logger logger = LoggerFactory.getLogger(NotificationService.class);
 
-    // Map to store subscribers for each hero
+    // Map to store subscribers for each hero, keyed by hero ID
     private final Map<String, List<StreamObserver<HeroUpdate>>> heroSubscribers = new ConcurrentHashMap<>();
     
-    // List of all subscribers
+    // List of all subscribers who want updates for all heroes
     private final List<StreamObserver<HeroUpdate>> allSubscribers = new CopyOnWriteArrayList<>();
 
+    /**
+     * Handles client subscription requests for hero updates.
+     * Clients can subscribe to updates for specific heroes or all heroes.
+     * 
+     * @param request The subscription request containing hero IDs to subscribe to
+     * @param responseObserver The stream observer for sending updates back to the client
+     */
     @Override
     public void subscribeToUpdates(SubscribeRequest request, StreamObserver<HeroUpdate> responseObserver) {
         logger.info("New subscription request received");
@@ -77,6 +101,13 @@ public class NotificationService extends NotificationServiceGrpc.NotificationSer
         }
     }
 
+    /**
+     * Notifies all relevant subscribers about a hero update.
+     * 
+     * @param heroId The ID of the hero that was updated
+     * @param hero The updated hero object
+     * @param updateType The type of update that occurred
+     */
     public void notifyHeroUpdate(String heroId, Hero hero, UpdateType updateType) {
         logger.debug("Notifying subscribers about {} update for hero ID: {}", updateType, heroId);
         
@@ -122,6 +153,11 @@ public class NotificationService extends NotificationServiceGrpc.NotificationSer
         });
     }
 
+    /**
+     * Removes a subscriber from both specific hero and all subscribers lists.
+     * 
+     * @param subscriber The subscriber to remove
+     */
     private void removeSubscriber(StreamObserver<HeroUpdate> subscriber) {
         // Remove from all subscribers
         allSubscribers.remove(subscriber);
