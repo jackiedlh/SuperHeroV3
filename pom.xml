@@ -49,6 +49,7 @@
         </dependency>
 
         <!-- gRPC -->
+        <!-- Netty is the default container of gRPC service -->
         <dependency>
             <groupId>io.grpc</groupId>
             <artifactId>grpc-netty-shaded</artifactId>
@@ -100,6 +101,7 @@
         </dependency>
 
         <!-- Caffeine Cache -->
+        <!-- https://github.com/ben-manes/caffeine -->
         <!-- Caffeine is a high-performance caching library for Java. It provides an in-memory cache with advanced features such as automatic loading of cache entries, cache expiration, and statistics. -->
         <!-- It is designed to be used as a drop-in replacement for the Guava Cache and provides better performance and more features. -->
         <!-- Benefits of using Caffeine include: -->

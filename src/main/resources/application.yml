@@ -5,7 +5,7 @@ spring:
   cache:
     type: caffeine
     caffeine:
-      spec: maximumSize=20,expireAfterWrite=10m  # 65 minutes expiration
+      spec: maximumSize=20,expireAfterWrite=2m  # 65 minutes expiration
 
 # Server Configuration
 server:

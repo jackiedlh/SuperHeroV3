@@ -22,13 +22,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @RestController
-public class HeroController {
+public class HeroCacheController {
 
     private final CacheManager cacheManager;
     private final SuperheroProxyService superheroProxyService;
 
     @Autowired
-    public HeroController(CacheManager cacheManager, SuperheroProxyService superheroProxyService) {
+    public HeroCacheController(CacheManager cacheManager, SuperheroProxyService superheroProxyService) {
         this.cacheManager = cacheManager;
         this.superheroProxyService = superheroProxyService;
     }
