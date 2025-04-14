@@ -5,7 +5,9 @@ spring:
   cache:
     type: caffeine
     caffeine:
-      spec: maximumSize=20,expireAfterWrite=2m  # 65 minutes expiration
+      spec: maximumSize=1000,expireAfterWrite=300s
+  application:
+    name: superhero-proxy
 
 # Server Configuration
 server:
@@ -21,7 +23,7 @@ superhero:
       url: https://superheroapi.com/ids.html
   cache:
     update:
-      interval: 60  # 1 minute in seconds (test only)
+      interval: 60
 
 #  autoconfigure:
 #    exclude: org.springframework.boot.actuate.autoconfigure.web.server.ManagementContextAutoConfiguration
@@ -29,7 +31,7 @@ superhero:
 # gRPC Server Configuration
 grpc:
   server:
-    port: 9091
+    port: 9090
     security:
       enabled: false
     netty:
@@ -44,9 +46,12 @@ grpc:
 
 # Logging Configuration (common for all profiles)
 logging:
+  file:
+    name: logs/superhero-proxy.log
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
   level:
     root: INFO
     com.example.superheroproxy: DEBUG
-    net.devh.boot.grpc: INFO
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n" 
+    net.devh.boot.grpc: INFO 

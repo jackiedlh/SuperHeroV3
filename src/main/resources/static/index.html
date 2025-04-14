@@ -242,6 +242,39 @@
             background-color: #f5f5f5;
             cursor: pointer;
         }
+
+        .cache-container {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        .cache-keys {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        .cache-key {
+            padding: 5px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+        /* Customize scrollbar appearance */
+        .cache-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        .cache-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        .cache-container::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        .cache-container::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
     </style>
 </head>
 <body>
@@ -287,8 +320,12 @@
         <div class="right-panel">
             <div class="panel">
                 <h2>Cache</h2>
-                <button onclick="showCacheKeys()">Show All Cache Keys</button>
-                <div id="cacheKeys" class="cache-keys"></div>
+                <button onclick="showAllCacheKeys()">Show All Cache Keys</button>
+                <div class="cache-container">
+                    <div class="cache-keys" id="cacheKeysList">
+                        <!-- Cache keys will be dynamically inserted here -->
+                    </div>
+                </div>
                 <div id="heroDetails" class="hero-details"></div>
                 <div id="cacheStats" class="cache-stats">
                     <h3>Cache Statistics <button onclick="updateCacheStats()" class="refresh-button" title="Refresh Statistics">&#8635;</button></h3>

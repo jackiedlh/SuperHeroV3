@@ -219,9 +219,9 @@ function updateCacheStats() {
         });
 }
 
-function showCacheKeys() {
-    const cacheKeysElement = document.getElementById('cacheKeys');
-    cacheKeysElement.innerHTML = '<p>Loading cache keys...</p>';
+function showAllCacheKeys() {
+    const cacheKeysElement = document.getElementById('cacheKeysList');
+    cacheKeysElement.innerHTML = '<div class="cache-key">Loading cache keys...</div>';
     
     // Update cache stats
     updateCacheStats();
@@ -235,41 +235,22 @@ function showCacheKeys() {
         })
         .then(keys => {
             if (keys.length === 0) {
-                cacheKeysElement.innerHTML = '<p>No keys in cache</p>';
+                cacheKeysElement.innerHTML = '<div class="cache-key">No keys in cache</div>';
                 return;
             }
             
-            // Create a grid container
-            const gridContainer = document.createElement('div');
-            gridContainer.className = 'cache-keys-grid';
-            
-            // Create columns (3 columns)
-            const columns = 3;
-            const itemsPerColumn = Math.ceil(keys.length / columns);
-            
-            for (let i = 0; i < columns; i++) {
-                const column = document.createElement('div');
-                column.className = 'cache-keys-column';
-                
-                const startIndex = i * itemsPerColumn;
-                const endIndex = Math.min(startIndex + itemsPerColumn, keys.length);
-                
-                for (let j = startIndex; j < endIndex; j++) {
-                    const key = keys[j];
-                    const keyElement = document.createElement('div');
-                    keyElement.className = 'cache-key-item';
-                    keyElement.innerHTML = `<span onclick="showHeroDetails('${key}')" style="cursor: pointer;">${key}</span>`;
-                    column.appendChild(keyElement);
-                }
-                
-                gridContainer.appendChild(column);
-            }
-            
             cacheKeysElement.innerHTML = '';
-            cacheKeysElement.appendChild(gridContainer);
+            keys.sort((a, b) => a - b).forEach(key => {
+                const keyElement = document.createElement('div');
+                keyElement.className = 'cache-key';
+                keyElement.textContent = key;
+                keyElement.onclick = () => showHeroDetails(key);
+                cacheKeysElement.appendChild(keyElement);
+            });
         })
         .catch(error => {
-            cacheKeysElement.innerHTML = `<p class="error">Error: ${error.message}</p>`;
+            console.error('Error fetching cache keys:', error);
+            cacheKeysElement.innerHTML = `<div class="cache-key error">Error: ${error.message}</div>`;
         });
 }
 

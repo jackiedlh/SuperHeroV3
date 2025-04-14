@@ -24,19 +24,19 @@ public class SuperheroInnerService {
 
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
-    private final CacheUpdateService cacheUpdateService;
+    private final CacheUpdateScheduleService cacheUpdateScheduleService;
     private final NotificationService notificationService;
     private CacheManager cacheManager;
     private final ExternalApiService externalAPIService;
 
     public SuperheroInnerService(
             RestTemplate restTemplate,
-            CacheUpdateService cacheUpdateService,
+            CacheUpdateScheduleService cacheUpdateScheduleService,
             NotificationService notificationService,
             ExternalApiService externalAPIService) {
         this.restTemplate = restTemplate;
         this.objectMapper = new ObjectMapper();
-        this.cacheUpdateService = cacheUpdateService;
+        this.cacheUpdateScheduleService = cacheUpdateScheduleService;
         this.notificationService = notificationService;
         this.externalAPIService = externalAPIService;
     }
@@ -75,7 +75,7 @@ public class SuperheroInnerService {
     public Hero getHero(String id) {
         try {
             // Register the hero for monitoring
-            cacheUpdateService.addHeroToMonitor(id);
+            cacheUpdateScheduleService.addHeroToMonitor(id);
             Hero hero = externalAPIService.getHero(id);
 
             // Notify subscribers about the initial data

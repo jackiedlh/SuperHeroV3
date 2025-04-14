@@ -48,8 +48,8 @@ class SuperheroInnerServiceTest {
         }
 
         @Bean
-        CacheUpdateService cacheUpdateService() {
-            return mock(CacheUpdateService.class);
+        CacheUpdateScheduleService cacheUpdateService() {
+            return mock(CacheUpdateScheduleService.class);
         }
 
         @Bean
@@ -74,11 +74,11 @@ class SuperheroInnerServiceTest {
         @Bean
         SuperheroInnerService superheroSearchService(
                 TestRestTemplate restTemplate, 
-                CacheUpdateService cacheUpdateService,
+                CacheUpdateScheduleService cacheUpdateScheduleService,
                 NotificationService notificationService,
                 CacheManager cacheManager,
                 ExternalApiService externalAPIService) {
-            SuperheroInnerService service = new SuperheroInnerService(restTemplate, cacheUpdateService, notificationService, externalAPIService);
+            SuperheroInnerService service = new SuperheroInnerService(restTemplate, cacheUpdateScheduleService, notificationService, externalAPIService);
             service.setApiToken("test-token");
             service.setCacheManager(cacheManager);
             return service;
@@ -95,7 +95,7 @@ class SuperheroInnerServiceTest {
     private CacheManager cacheManager;
 
     @Autowired
-    private CacheUpdateService cacheUpdateService;
+    private CacheUpdateScheduleService cacheUpdateScheduleService;
 
     @Autowired
     private NotificationService notificationService;
