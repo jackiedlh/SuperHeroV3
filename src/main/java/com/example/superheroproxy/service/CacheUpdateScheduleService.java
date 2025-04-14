@@ -6,6 +6,7 @@ import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
+import com.example.superheroproxy.config.CacheConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -96,7 +97,7 @@ public class CacheUpdateScheduleService {
         // First check for new heroes
         mockGetNewAndUpdatedHeroes();
 
-        Cache cache = cacheManager.getCache("superheroCache");
+        Cache cache = cacheManager.getCache(CacheConfig.SUPERHERO_CACHE);
         if (cache == null) {
             logger.error("Cache 'superheroCache' not found");
             return;
@@ -162,7 +163,7 @@ public class CacheUpdateScheduleService {
     }
 
     private void cleanupMonitoredHeroes() {
-        Cache cache = cacheManager.getCache("superheroCache");
+        Cache cache = cacheManager.getCache(CacheConfig.SUPERHERO_CACHE);
         if (cache == null) {
             logger.error("Cache 'superheroCache' not found during cleanup");
             return;

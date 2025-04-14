@@ -3,6 +3,7 @@ package com.example.superheroproxy.service;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.example.superheroproxy.config.CacheConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.Cacheable;
@@ -59,7 +60,7 @@ public class SuperheroInnerService {
      * @return A set of hero IDs matching the search criteria
      * @throws RuntimeException if there's an error during the search
      */
-    @Cacheable(value = "heroSearchCache", key = "#name.toLowerCase()")
+    @Cacheable(value = CacheConfig.HERO_SEARCH_CACHE, key = "#name.toLowerCase()")
     public Set<String> searchHeroIds(String name) {
         try {
             SearchResponse searchResponse = externalAPIService.searchHero(name);
@@ -81,7 +82,7 @@ public class SuperheroInnerService {
      * @return The Hero object containing detailed information
      * @throws RuntimeException if there's an error retrieving the hero data
      */
-    @Cacheable(value = "superheroCache", key = "#id")
+    @Cacheable(value = CacheConfig.SUPERHERO_CACHE, key = "#id")
     public Hero getHero(String id) {
         try {
             // Register the hero for monitoring
