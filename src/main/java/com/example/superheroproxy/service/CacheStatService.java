@@ -9,12 +9,12 @@ import org.springframework.stereotype.Service;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
 
 @Service
-public class CacheService {
+public class CacheStatService {
 
-    private static final Logger logger = LoggerFactory.getLogger(CacheService.class);
+    private static final Logger logger = LoggerFactory.getLogger(CacheStatService.class);
     private final CacheManager cacheManager;
 
-    public CacheService(CacheManager cacheManager) {
+    public CacheStatService(CacheManager cacheManager) {
         this.cacheManager = cacheManager;
     }
 

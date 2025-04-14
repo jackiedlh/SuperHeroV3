@@ -19,7 +19,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.grpc.stub.StreamObserver;
 
-public class SuperheroServiceProxyTest {
+public class SuperheroProxyServiceTest {
 
     private static class TestStreamObserver implements StreamObserver<SearchResponse> {
         private SearchResponse response;
@@ -54,8 +54,8 @@ public class SuperheroServiceProxyTest {
     }
 
     private TestRestTemplate restTemplate;
-    private SuperheroServiceProxy superheroService;
-    private SuperheroSearchService superheroSearchService;
+    private SuperheroProxyService superheroService;
+    private SuperheroInnerService superheroInnerService;
     private CacheManager cacheManager;
     private StreamObserver<SearchResponse> responseObserver;
     private ObjectMapper objectMapper;
@@ -63,11 +63,11 @@ public class SuperheroServiceProxyTest {
     @BeforeEach
     void setUp() {
         restTemplate = mock(TestRestTemplate.class);
-        superheroSearchService = mock(SuperheroSearchService.class);
+        superheroInnerService = mock(SuperheroInnerService.class);
         cacheManager = new CaffeineCacheManager();
         responseObserver = new TestStreamObserver();
         objectMapper = new ObjectMapper();
-        superheroService = new SuperheroServiceProxy(superheroSearchService);
+        superheroService = new SuperheroProxyService(superheroInnerService);
     }
 
     @Test
@@ -75,23 +75,23 @@ public class SuperheroServiceProxyTest {
         SearchRequest request = SearchRequest.newBuilder().setName("batman").build();
         SearchResponse expectedResponse = SearchResponse.newBuilder().build();
         
-        when(superheroSearchService.searchHero(any())).thenReturn(expectedResponse);
+        when(superheroInnerService.searchHero(any())).thenReturn(expectedResponse);
         
         superheroService.searchHero(request, responseObserver);
         
         SearchResponse actualResponse = ((TestStreamObserver) responseObserver).getResponse();
-        verify(superheroSearchService).searchHero("batman");
+        verify(superheroInnerService).searchHero("batman");
     }
 
     @Test
     void testSearchHero_Error() throws Exception {
         SearchRequest request = SearchRequest.newBuilder().setName("batman").build();
         
-        when(superheroSearchService.searchHero(any())).thenThrow(new RuntimeException("Test error"));
+        when(superheroInnerService.searchHero(any())).thenThrow(new RuntimeException("Test error"));
         
         superheroService.searchHero(request, responseObserver);
         
         Throwable error = ((TestStreamObserver) responseObserver).getError();
-        verify(superheroSearchService).searchHero("batman");
+        verify(superheroInnerService).searchHero("batman");
     }
 } 

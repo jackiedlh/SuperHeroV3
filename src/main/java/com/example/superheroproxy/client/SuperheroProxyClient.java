@@ -1,7 +1,7 @@
 package com.example.superheroproxy.client;
 
 import com.example.superheroproxy.proto.*;
-import com.example.superheroproxy.service.SuperheroSearchService;
+import com.example.superheroproxy.service.SuperheroInnerService;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
@@ -20,18 +20,18 @@ public class SuperheroProxyClient {
 
     private final ManagedChannel channel;
     private final NotificationServiceGrpc.NotificationServiceStub notificationStub;
-    private final SuperheroSearchService superheroSearchService;
+    private final SuperheroInnerService superheroInnerService;
 
     @Autowired
     public SuperheroProxyClient(
             @Value("${grpc.server.host:localhost}") String host,
             @Value("${grpc.server.port:9091}") int port,
-            SuperheroSearchService superheroSearchService) {
+            SuperheroInnerService superheroInnerService) {
         this.channel = ManagedChannelBuilder.forAddress(host, port)
                 .usePlaintext()
                 .build();
         this.notificationStub = NotificationServiceGrpc.newStub(channel);
-        this.superheroSearchService = superheroSearchService;
+        this.superheroInnerService = superheroInnerService;
     }
 
     /**
@@ -41,12 +41,12 @@ public class SuperheroProxyClient {
      */
     public SearchResponse searchHero(String name) {
         logger.info("Searching for hero: {}", name);
-        return superheroSearchService.searchHero(name);
+        return superheroInnerService.searchHero(name);
     }
 
     public Hero getHero(String id) {
         logger.info("Get hero: {}", id);
-        return superheroSearchService.getHero(id);
+        return superheroInnerService.getHero(id);
     }
 
     /**

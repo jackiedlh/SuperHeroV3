@@ -1,7 +1,6 @@
 package com.example.superheroproxy.service;
 
 import java.util.Arrays;
-import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
@@ -24,8 +23,8 @@ import com.example.superheroproxy.config.TestRestTemplate;
 import com.example.superheroproxy.proto.SearchResponse;
 import com.example.superheroproxy.utils.ResponseGenerator;
 
-@SpringJUnitConfig(classes = SuperheroSearchServiceTest.TestConfig.class)
-class SuperheroSearchServiceTest {
+@SpringJUnitConfig(classes = SuperheroInnerServiceTest.TestConfig.class)
+class SuperheroInnerServiceTest {
 
     @Configuration
     @EnableCaching
@@ -54,13 +53,13 @@ class SuperheroSearchServiceTest {
         }
 
         @Bean
-        NotificationServiceImpl notificationService() {
-            return mock(NotificationServiceImpl.class);
+        NotificationService notificationService() {
+            return mock(NotificationService.class);
         }
 
         @Bean
-        ExternalAPIService externalAPIService() {
-            ExternalAPIService mockService = mock(ExternalAPIService.class);
+        ExternalApiService externalAPIService() {
+            ExternalApiService mockService = mock(ExternalApiService.class);
             try {
                 when(mockService.searchHero(anyString())).thenAnswer(invocation -> {
                     String name = invocation.getArgument(0);
@@ -73,13 +72,13 @@ class SuperheroSearchServiceTest {
         }
 
         @Bean
-        SuperheroSearchService superheroSearchService(
+        SuperheroInnerService superheroSearchService(
                 TestRestTemplate restTemplate, 
                 CacheUpdateService cacheUpdateService,
-                NotificationServiceImpl notificationService,
+                NotificationService notificationService,
                 CacheManager cacheManager,
-                ExternalAPIService externalAPIService) {
-            SuperheroSearchService service = new SuperheroSearchService(restTemplate, cacheUpdateService, notificationService, externalAPIService);
+                ExternalApiService externalAPIService) {
+            SuperheroInnerService service = new SuperheroInnerService(restTemplate, cacheUpdateService, notificationService, externalAPIService);
             service.setApiToken("test-token");
             service.setCacheManager(cacheManager);
             return service;
@@ -87,7 +86,7 @@ class SuperheroSearchServiceTest {
     }
 
     @Autowired
-    private SuperheroSearchService superheroSearchService;
+    private SuperheroInnerService superheroInnerService;
 
     @Autowired
     private TestRestTemplate restTemplate;
@@ -99,10 +98,10 @@ class SuperheroSearchServiceTest {
     private CacheUpdateService cacheUpdateService;
 
     @Autowired
-    private NotificationServiceImpl notificationService;
+    private NotificationService notificationService;
 
     @Autowired
-    private ExternalAPIService externalAPIService;
+    private ExternalApiService externalAPIService;
 
     @BeforeEach
     void setUp() {
@@ -115,12 +114,12 @@ class SuperheroSearchServiceTest {
     @Test
     void testSearchHero_CacheHit() throws Exception {
         // First request (cache miss)
-        SearchResponse response1 = superheroSearchService.searchHero("spider-man");
+        SearchResponse response1 = superheroInnerService.searchHero("spider-man");
         // Verify that the search API was called once
         verify(externalAPIService).searchHero("spider-man");
 
         // Second request (cache hit for individual heroes, cache also hit for search)
-        SearchResponse response2 = superheroSearchService.searchHero("spider-man");
+        SearchResponse response2 = superheroInnerService.searchHero("spider-man");
         
         // Verify that the search API was called only once (since we cache search results)
         verify(externalAPIService).searchHero("spider-man");
@@ -134,12 +133,12 @@ class SuperheroSearchServiceTest {
     @Test
     void testSearchHero_CaseInsensitive() throws Exception {
         // First request with mixed case (cache miss)
-        SearchResponse response1 = superheroSearchService.searchHero("Spider-Man");
+        SearchResponse response1 = superheroInnerService.searchHero("Spider-Man");
         // Verify that the search API was called once
         verify(externalAPIService).searchHero("Spider-Man".toLowerCase());
 
         // Second request with lowercase (cache hit for individual heroes, and search cached too)
-        SearchResponse response2 = superheroSearchService.searchHero("spider-man");
+        SearchResponse response2 = superheroInnerService.searchHero("spider-man");
         
         // Verify that the search API was called only once (since we cache search results)
         verify(externalAPIService).searchHero("Spider-Man".toLowerCase());

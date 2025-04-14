@@ -12,7 +12,7 @@ import org.springframework.cache.caffeine.CaffeineCacheManager;
 
 class CacheStatsServiceTest {
 
-    private CacheService cacheStatsService;
+    private CacheStatService cacheStatsService;
     private CacheManager cacheManager;
     private Logger logger;
 
@@ -23,10 +23,10 @@ class CacheStatsServiceTest {
         cacheManager.getCache("superheroCache").put("test", "value");
 
         // Create the service
-        cacheStatsService = new CacheService(cacheManager);
+        cacheStatsService = new CacheStatService(cacheManager);
         
         // Get the logger from the service
-        logger = LoggerFactory.getLogger(CacheService.class);
+        logger = LoggerFactory.getLogger(CacheStatService.class);
     }
 
     @Test
@@ -43,7 +43,7 @@ class CacheStatsServiceTest {
         // Arrange
         CacheManager emptyCacheManager = mock(CacheManager.class);
         when(emptyCacheManager.getCache(anyString())).thenReturn(null);
-        cacheStatsService = new CacheService(emptyCacheManager);
+        cacheStatsService = new CacheStatService(emptyCacheManager);
 
         // Act
         cacheStatsService.getCacheStats();

@@ -2,7 +2,6 @@ package com.example.superheroproxy.service;
 
 import com.example.superheroproxy.proto.Hero;
 import com.example.superheroproxy.proto.SearchResponse;
-import com.example.superheroproxy.utils.ResponseGenerator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,8 +12,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 @Service
-public class SuperheroSearchService {
-    private static final Logger logger = LoggerFactory.getLogger(SuperheroSearchService.class);
+public class SuperheroInnerService {
+    private static final Logger logger = LoggerFactory.getLogger(SuperheroInnerService.class);
 
     @Value("${superhero.api.token}")
     private String apiToken;
@@ -25,15 +24,15 @@ public class SuperheroSearchService {
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
     private final CacheUpdateService cacheUpdateService;
-    private final NotificationServiceImpl notificationService;
+    private final NotificationService notificationService;
     private CacheManager cacheManager;
-    private final ExternalAPIService externalAPIService;
+    private final ExternalApiService externalAPIService;
 
-    public SuperheroSearchService(
+    public SuperheroInnerService(
             RestTemplate restTemplate,
             CacheUpdateService cacheUpdateService,
-            NotificationServiceImpl notificationService,
-            ExternalAPIService externalAPIService) {
+            NotificationService notificationService,
+            ExternalApiService externalAPIService) {
         this.restTemplate = restTemplate;
         this.objectMapper = new ObjectMapper();
         this.cacheUpdateService = cacheUpdateService;

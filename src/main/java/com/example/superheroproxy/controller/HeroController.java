@@ -5,7 +5,7 @@ import com.example.superheroproxy.dto.SearchResultDto;
 import com.example.superheroproxy.proto.Hero;
 import com.example.superheroproxy.proto.SearchRequest;
 import com.example.superheroproxy.proto.SearchResponse;
-import com.example.superheroproxy.service.SuperheroServiceProxy;
+import com.example.superheroproxy.service.SuperheroProxyService;
 import io.grpc.stub.StreamObserver;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.Cache;
@@ -25,12 +25,12 @@ import java.util.stream.Collectors;
 public class HeroController {
 
     private final CacheManager cacheManager;
-    private final SuperheroServiceProxy superheroServiceProxy;
+    private final SuperheroProxyService superheroProxyService;
 
     @Autowired
-    public HeroController(CacheManager cacheManager, SuperheroServiceProxy superheroServiceProxy) {
+    public HeroController(CacheManager cacheManager, SuperheroProxyService superheroProxyService) {
         this.cacheManager = cacheManager;
-        this.superheroServiceProxy = superheroServiceProxy;
+        this.superheroProxyService = superheroProxyService;
     }
 
     @GetMapping("/api/cache/keys")
@@ -119,7 +119,7 @@ public class HeroController {
                 .setName(name)
                 .build();
 
-            superheroServiceProxy.searchHero(request, new StreamObserver<SearchResponse>() {
+            superheroProxyService.searchHero(request, new StreamObserver<SearchResponse>() {
                 @Override
                 public void onNext(SearchResponse response) {
                     responseHolder[0] = response;

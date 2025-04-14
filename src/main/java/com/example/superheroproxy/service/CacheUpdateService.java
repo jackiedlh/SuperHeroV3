@@ -1,10 +1,6 @@
 package com.example.superheroproxy.service;
 
 import com.example.superheroproxy.proto.Hero;
-import com.example.superheroproxy.proto.SearchResponse;
-import com.example.superheroproxy.utils.ResponseGenerator;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -12,7 +8,6 @@ import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
 import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListSet;
@@ -27,13 +22,13 @@ public class CacheUpdateService {
 
     private final CacheManager cacheManager;
     private final Set<String> monitoredHeroes;
-    private final NotificationServiceImpl notificationService;
-    private final ExternalAPIService externalAPIService;
+    private final NotificationService notificationService;
+    private final ExternalApiService externalAPIService;
 
     public CacheUpdateService(
             CacheManager cacheManager,
-            NotificationServiceImpl notificationService,
-            ExternalAPIService externalAPIService) {
+            NotificationService notificationService,
+            ExternalApiService externalAPIService) {
         this.cacheManager = cacheManager;
         this.monitoredHeroes = new ConcurrentSkipListSet<>();
         this.notificationService = notificationService;

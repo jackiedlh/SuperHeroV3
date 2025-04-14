@@ -1,6 +1,5 @@
 package com.example.superheroproxy.service;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -18,8 +17,8 @@ import io.grpc.stub.StreamObserver;
 import net.devh.boot.grpc.server.service.GrpcService;
 
 @GrpcService
-public class NotificationServiceImpl extends NotificationServiceGrpc.NotificationServiceImplBase {
-    private static final Logger logger = LoggerFactory.getLogger(NotificationServiceImpl.class);
+public class NotificationService extends NotificationServiceGrpc.NotificationServiceImplBase {
+    private static final Logger logger = LoggerFactory.getLogger(NotificationService.class);
 
     // Map to store subscribers for each hero
     private final Map<String, List<StreamObserver<HeroUpdate>>> heroSubscribers = new ConcurrentHashMap<>();

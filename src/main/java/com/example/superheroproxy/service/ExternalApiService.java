@@ -10,8 +10,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 @Service
-public class ExternalAPIService {
-    private static final Logger logger = LoggerFactory.getLogger(ExternalAPIService.class);
+public class ExternalApiService {
+    private static final Logger logger = LoggerFactory.getLogger(ExternalApiService.class);
 
 
     @Value("${superhero.api.token}")
@@ -22,7 +22,7 @@ public class ExternalAPIService {
 
     private final RestTemplate restTemplate;
 
-    public ExternalAPIService(RestTemplate restTemplate){
+    public ExternalApiService(RestTemplate restTemplate){
         this.restTemplate = restTemplate;
     }
 

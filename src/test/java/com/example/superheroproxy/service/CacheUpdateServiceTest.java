@@ -15,7 +15,6 @@ import org.springframework.cache.CacheManager;
 
 import com.example.superheroproxy.proto.Hero;
 import com.example.superheroproxy.utils.ResponseGenerator;
-import com.fasterxml.jackson.core.JsonProcessingException;
 
 public class CacheUpdateServiceTest {
 
@@ -26,10 +25,10 @@ public class CacheUpdateServiceTest {
     private Cache cache;
 
     @Mock
-    private NotificationServiceImpl notificationService;
+    private NotificationService notificationService;
 
     @Mock
-    private ExternalAPIService externalAPIService;
+    private ExternalApiService externalAPIService;
 
     private CacheUpdateService cacheUpdateService;
     private static final String MOCK_RESPONSE = "{\"response\":\"success\",\"id\":\"620\",\"name\":\"Spider-Man\",\"powerstats\":{\"intelligence\":\"88\",\"strength\":\"55\",\"speed\":\"60\",\"durability\":\"75\",\"power\":\"74\",\"combat\":\"85\"},\"biography\":{\"full-name\":\"Peter Parker\",\"alter-egos\":\"No alter egos found.\",\"aliases\":[\"Spidey\",\"Wall-crawler\",\"Web-slinger\"],\"place-of-birth\":\"New York, New York\",\"first-appearance\":\"Amazing Fantasy #15\",\"publisher\":\"Marvel Comics\",\"alignment\":\"good\"},\"appearance\":{\"gender\":\"Male\",\"race\":\"Human\",\"height\":[\"5'10\",\"178 cm\"],\"weight\":[\"165 lb\",\"75 kg\"],\"eye-color\":\"Hazel\",\"hair-color\":\"Brown\"},\"work\":{\"occupation\":\"Freelance photographer, teacher\",\"base\":\"New York, New York\"},\"connections\":{\"group-affiliation\":\"Avengers\",\"relatives\":\"Richard and Mary Parker (parents, deceased)\"},\"image\":{\"url\":\"https://www.superherodb.com/pictures2/portraits/10/100/133.jpg\"}}";
