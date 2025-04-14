@@ -380,12 +380,20 @@ async function searchHero() {
             return;
         }
 
+        // Add the hero rows
         searchResultsBody.innerHTML = data.map(hero => `
             <tr onclick="selectHero('${hero.id}')">
                 <td>${hero.id}</td>
                 <td>${hero.name}</td>
             </tr>
         `).join('');
+
+        // Add the count row at the bottom
+        const countRow = document.createElement('tr');
+        countRow.style.backgroundColor = '#f2f2f2';
+        countRow.style.fontWeight = 'bold';
+        countRow.innerHTML = `<td colspan="2" style="text-align: center;">Total Heroes Found: ${data.length}</td>`;
+        searchResultsBody.appendChild(countRow);
     } catch (error) {
         console.error('Search error:', error);
         searchResultsBody.innerHTML = '<tr><td colspan="2">Error searching for heroes</td></tr>';
