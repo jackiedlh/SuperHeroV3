@@ -129,16 +129,16 @@ function handleSubscribeAll(checked) {
                     document.getElementById('updates').appendChild(pingElement);
                     return;
                 }
-
+                console.log("get by handleSubscribeAll")
+                console.log(event);
                 const update = JSON.parse(event.data);
                 const hero = update.hero;
+                const type = update.updateType;
                 
                 const updateElement = document.createElement('div');
                 updateElement.className = 'update';
                 updateElement.innerHTML = `
-                    <strong>${hero.name}</strong><br>
-                    Power Stats: ${JSON.stringify(hero.powerstats)}<br>
-                    Biography: ${JSON.stringify(hero.biography)}
+                    <strong>${type} ${hero.id}:${hero.name}</strong>
                 `;
                 document.getElementById('updates').appendChild(updateElement);
             } catch (error) {
@@ -187,16 +187,16 @@ function subscribe() {
                 document.getElementById('updates').appendChild(pingElement);
                 return;
             }
-
+            console.log("get by subscribe specific")
+            console.log(event);
             const update = JSON.parse(event.data);
             const hero = update.hero;
+            const type = update.updateType;
             
             const updateElement = document.createElement('div');
             updateElement.className = 'update';
             updateElement.innerHTML = `
-                <strong>${hero.name}</strong><br>
-                Power Stats: ${JSON.stringify(hero.powerstats)}<br>
-                Biography: ${JSON.stringify(hero.biography)}
+                <strong>${type} ${hero.id}:${hero.name}</strong>
             `;
             document.getElementById('updates').appendChild(updateElement);
         } catch (error) {
