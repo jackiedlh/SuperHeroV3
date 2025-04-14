@@ -28,7 +28,7 @@ function showSubscribedHeroDetails(heroId) {
     const heroDetails = document.getElementById('subscribedHeroDetails');
     heroDetails.innerHTML = '<h3>Loading hero details...</h3>';
     
-    fetch(`${baseUrl}/api/${heroId}`)
+    fetch(`${baseUrl}/api/cache/${heroId}`)
         .then(response => {
             if (!response.ok) {
                 throw new Error('Hero not found in cache');
@@ -75,7 +75,7 @@ function editSubscribedHeroName(heroId) {
 function saveSubscribedHeroName(heroId) {
     const newName = document.getElementById('subscribedNameInput').value;
     
-    fetch(`${baseUrl}/api/${heroId}/name`, {
+    fetch(`${baseUrl}/api/cache/${heroId}/name`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -117,7 +117,7 @@ function handleSubscribeAll(checked) {
         reconnectAttempts = 0;
         subscribedHeroes.clear();
         updateSubscriptionList();
-        //document.getElementById('subscribedHeroDetails').innerHTML = '<h3>Subscribed to all heroes</h3>';
+        document.getElementById('subscribedHeroDetails').innerHTML = '<h3>Subscribed to all heroes</h3>';
 
         eventSource.onmessage = function(event) {
             try {
@@ -153,6 +153,10 @@ function handleSubscribeAll(checked) {
             updateStatus(false);
             subscribedHeroes.clear();
             updateSubscriptionList();
+            
+            // Show subscription sections again
+            document.getElementById('subscriptionList').style.display = 'block';
+            document.getElementById('subscribedHeroDetails').style.display = 'block';
             document.getElementById('subscribedHeroDetails').innerHTML = '<h3>No hero subscribed yet</h3>';
         }
     }
@@ -312,7 +316,7 @@ function showHeroDetails(heroId) {
     const heroDetails = document.getElementById('heroDetails');
     heroDetails.innerHTML = '<h3>Loading hero details...</h3>';
     
-    fetch(`${baseUrl}/api/${heroId}`)
+    fetch(`${baseUrl}/api/cache/${heroId}`)
         .then(response => {
             if (!response.ok) {
                 throw new Error('Hero not found in cache');
@@ -359,7 +363,7 @@ function editHeroName(heroId) {
 function saveHeroName(heroId) {
     const newName = document.getElementById('nameInput').value;
     
-    fetch(`${baseUrl}/api/${heroId}/name`, {
+    fetch(`${baseUrl}/api/cache/${heroId}/name`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

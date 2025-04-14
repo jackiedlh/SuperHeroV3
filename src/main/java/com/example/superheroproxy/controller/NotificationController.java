@@ -3,9 +3,7 @@ package com.example.superheroproxy.controller;
 import com.example.superheroproxy.proto.HeroUpdate;
 import com.example.superheroproxy.proto.NotificationServiceGrpc;
 import com.example.superheroproxy.proto.SubscribeRequest;
-import com.example.superheroproxy.proto.Hero;
-import com.example.superheroproxy.proto.PowerStats;
-import com.example.superheroproxy.proto.Biography;
+import com.example.superheroproxy.utils.Converter;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
@@ -14,305 +12,274 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.HashMap;
-import java.io.IOException;
 
+/**
+ * Controller that handles real-time notifications using Server-Sent Events (SSE) and gRPC.
+ * This controller allows clients to subscribe to hero updates and receive them in real-time.
+ * It maintains a connection with a gRPC notification service and forwards updates to subscribed clients.
+ * 
+ * The controller implements a pub-sub pattern where:
+ * - Clients subscribe to updates via SSE
+ * - The controller maintains a gRPC connection to the notification service
+ * - Updates are forwarded from gRPC to SSE clients
+ * - A ping mechanism keeps SSE connections alive
+ */
 @RestController
 @RequestMapping("/api/notifications")
 public class NotificationController {
+    /** Map to store active SSE emitters for each subscription (hero ID or "all") */
     private final Map<String, SseEmitter> emitters = new ConcurrentHashMap<>();
+    
+    /** gRPC channel for communication with the notification service */
     private final ManagedChannel channel;
+    
+    /** Asynchronous gRPC stub for making non-blocking calls */
     private final NotificationServiceGrpc.NotificationServiceStub asyncStub;
 
     /**
-     * This controller is only for test out notification grpc service
-     * @param grpcPort
+     * Constructs the NotificationController and initializes the gRPC connection.
+     * Sets up a managed channel with keep-alive settings to maintain the connection.
+     *
+     * @param grpcPort The port number for the gRPC server
+     * @param host The host for the gRPC server
+     * @param keepAliveTime The keep-alive time for the gRPC connection
+     * @param keepAliveTimeout The keep-alive timeout for the gRPC connection
+     * @param keepAliveWithoutCalls Flag indicating if the gRPC connection should be kept alive without calls
      */
-    public NotificationController(@Value("${grpc.server.port}") int grpcPort) {
-        this.channel = ManagedChannelBuilder.forAddress("localhost", grpcPort)
+    public NotificationController(
+            @Value("${grpc.server.port}") int grpcPort,
+            @Value("${grpc.server.channel.host}") String host,
+            @Value("${grpc.server.channel.keep-alive.time}") int keepAliveTime,
+            @Value("${grpc.server.channel.keep-alive.timeout}") int keepAliveTimeout,
+            @Value("${grpc.server.channel.keep-alive.without-calls}") boolean keepAliveWithoutCalls) {
+        this.channel = ManagedChannelBuilder.forAddress(host, grpcPort)
                 .usePlaintext()
-                .keepAliveTime(30, TimeUnit.SECONDS)
-                .keepAliveTimeout(20, TimeUnit.SECONDS)
-                .keepAliveWithoutCalls(true)
+                .keepAliveTime(keepAliveTime, TimeUnit.SECONDS)
+                .keepAliveTimeout(keepAliveTimeout, TimeUnit.SECONDS)
+                .keepAliveWithoutCalls(keepAliveWithoutCalls)
                 .build();
         this.asyncStub = NotificationServiceGrpc.newStub(channel);
     }
 
-    private Map<String, Object> convertHeroUpdateToMap(HeroUpdate update) {
-        Map<String, Object> result = new HashMap<>();
-        result.put("heroId", update.getHeroId());
-        result.put("hero", convertHeroToMap(update.getHero()));
-        result.put("updateType", update.getUpdateType().name());
-        return result;
-    }
-
-    private Map<String, Object> convertHeroToMap(Hero hero) {
-        Map<String, Object> result = new HashMap<>();
-        result.put("id", hero.getId());
-        result.put("name", hero.getName());
-        result.put("powerstats", convertPowerStatsToMap(hero.getPowerstats()));
-        result.put("biography", convertBiographyToMap(hero.getBiography()));
-        return result;
-    }
-
-    private Map<String, Object> convertPowerStatsToMap(PowerStats powerStats) {
-        Map<String, Object> result = new HashMap<>();
-        result.put("intelligence", powerStats.getIntelligence());
-        result.put("strength", powerStats.getStrength());
-        result.put("speed", powerStats.getSpeed());
-        result.put("durability", powerStats.getDurability());
-        result.put("power", powerStats.getPower());
-        result.put("combat", powerStats.getCombat());
-        return result;
-    }
-
-    private Map<String, Object> convertBiographyToMap(Biography biography) {
-        Map<String, Object> result = new HashMap<>();
-        result.put("fullName", biography.getFullName());
-        result.put("alterEgos", biography.getAlterEgos());
-        result.put("aliases", biography.getAliasesList());
-        result.put("placeOfBirth", biography.getPlaceOfBirth());
-        result.put("firstAppearance", biography.getFirstAppearance());
-        result.put("publisher", biography.getPublisher());
-        result.put("alignment", biography.getAlignment());
-        return result;
-    }
-
+    /**
+     * Subscribes a client to updates for a specific hero.
+     * Creates an SSE connection that will receive real-time updates for the specified hero.
+     *
+     * @param heroId The ID of the hero to subscribe to
+     * @return An SseEmitter that the client can use to receive updates
+     */
     @GetMapping(value = "/subscribe/{heroId}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter subscribe(@PathVariable String heroId) {
-        // Set a timeout of 5 minutes
-        SseEmitter emitter = new SseEmitter(300000L);
-        emitters.put(heroId, emitter);
-        AtomicBoolean isActive = new AtomicBoolean(true);
-        AtomicBoolean isCompleted = new AtomicBoolean(false);
-
-        // Send a ping every 60 seconds to keep the connection alive
-        Thread pingThread = new Thread(() -> {
-            while (isActive.get() && !Thread.currentThread().isInterrupted()) {
-                try {
-                    if (!isCompleted.get()) {
-                        try {
-                            emitter.send("ping");
-                        } catch (IOException e) {
-                            // Client disconnected, stop the ping thread
-                            isActive.set(false);
-                            break;
-                        }
-                    } else {
-                        isActive.set(false);
-                        break;
-                    }
-                    Thread.sleep(60000);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    break;
-                } catch (Exception e) {
-                    // Log other errors but continue
-                    System.err.println("Error in ping thread: " + e.getMessage());
-                }
-            }
-            // Clean up if thread exits
-            if (isActive.get()) {
-                isActive.set(false);
-                emitters.remove(heroId);
-                if (!isCompleted.get()) {
-                    emitter.complete();
-                }
-            }
-        });
-        pingThread.setDaemon(true);
-        pingThread.start();
-
-        // Handle completion
-        emitter.onCompletion(() -> {
-            isActive.set(false);
-            isCompleted.set(true);
-            emitters.remove(heroId);
-            pingThread.interrupt();
-        });
-
-        // Handle timeout
-        emitter.onTimeout(() -> {
-            isActive.set(false);
-            isCompleted.set(true);
-            emitters.remove(heroId);
-            pingThread.interrupt();
-            emitter.complete();
-        });
-
-        SubscribeRequest request = SubscribeRequest.newBuilder()
-                .addHeroIds(heroId)
-                .build();
-
-        asyncStub.subscribeToUpdates(request, new StreamObserver<HeroUpdate>() {
-            @Override
-            public void onNext(HeroUpdate update) {
-                if (!isActive.get() || isCompleted.get()) {
-                    return;
-                }
-                try {
-                    Map<String, Object> updateMap = convertHeroUpdateToMap(update);
-                    emitter.send(updateMap, MediaType.APPLICATION_JSON);
-                } catch (IOException e) {
-                    // Client disconnected
-                    isActive.set(false);
-                    isCompleted.set(true);
-                    emitters.remove(heroId);
-                    pingThread.interrupt();
-                    emitter.complete();
-                } catch (Exception e) {
-                    // Other errors
-                    isActive.set(false);
-                    isCompleted.set(true);
-                    emitters.remove(heroId);
-                    pingThread.interrupt();
-                    emitter.completeWithError(e);
-                }
-            }
-
-            @Override
-            public void onError(Throwable t) {
-                isActive.set(false);
-                isCompleted.set(true);
-                emitters.remove(heroId);
-                pingThread.interrupt();
-                emitter.completeWithError(t);
-            }
-
-            @Override
-            public void onCompleted() {
-                isActive.set(false);
-                isCompleted.set(true);
-                emitters.remove(heroId);
-                pingThread.interrupt();
-                emitter.complete();
-            }
-        });
-
-        return emitter;
+        return createSubscription(heroId, SubscribeRequest.newBuilder().addHeroIds(heroId).build());
     }
 
+    /**
+     * Subscribes a client to updates for all heroes.
+     * Creates an SSE connection that will receive real-time updates for all heroes.
+     *
+     * @return An SseEmitter that the client can use to receive updates for all heroes
+     */
     @GetMapping(value = "/subscribe", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter subscribeAll() {
-        // Set a timeout of 5 minutes
-        SseEmitter emitter = new SseEmitter(300000L);
-        emitters.put("all", emitter);
-        AtomicBoolean isActive = new AtomicBoolean(true);
-        AtomicBoolean isCompleted = new AtomicBoolean(false);
-
-        // Send a ping every 60 seconds to keep the connection alive
-        Thread pingThread = new Thread(() -> {
-            while (isActive.get() && !Thread.currentThread().isInterrupted()) {
-                try {
-                    if (!isCompleted.get()) {
-                        try {
-                            emitter.send("ping");
-                        } catch (IOException e) {
-                            // Client disconnected, stop the ping thread
-                            isActive.set(false);
-                            break;
-                        }
-                    } else {
-                        isActive.set(false);
-                        break;
-                    }
-                    Thread.sleep(60000);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    break;
-                } catch (Exception e) {
-                    // Log other errors but continue
-                    System.err.println("Error in ping thread: " + e.getMessage());
-                }
-            }
-            // Clean up if thread exits
-            if (isActive.get()) {
-                isActive.set(false);
-                emitters.remove("all");
-                if (!isCompleted.get()) {
-                    emitter.complete();
-                }
-            }
-        });
-        pingThread.setDaemon(true);
-        pingThread.start();
-
-        // Handle completion
-        emitter.onCompletion(() -> {
-            isActive.set(false);
-            isCompleted.set(true);
-            emitters.remove("all");
-            pingThread.interrupt();
-        });
-
-        // Handle timeout
-        emitter.onTimeout(() -> {
-            isActive.set(false);
-            isCompleted.set(true);
-            emitters.remove("all");
-            pingThread.interrupt();
-            emitter.complete();
-        });
-
-        SubscribeRequest request = SubscribeRequest.newBuilder().build();
-
-        asyncStub.subscribeToUpdates(request, new StreamObserver<HeroUpdate>() {
-            @Override
-            public void onNext(HeroUpdate update) {
-                if (!isActive.get() || isCompleted.get()) {
-                    return;
-                }
-                try {
-                    Map<String, Object> updateMap = convertHeroUpdateToMap(update);
-                    emitter.send(updateMap, MediaType.APPLICATION_JSON);
-                } catch (IOException e) {
-                    // Client disconnected
-                    isActive.set(false);
-                    isCompleted.set(true);
-                    emitters.remove("all");
-                    pingThread.interrupt();
-                    emitter.complete();
-                } catch (Exception e) {
-                    // Other errors
-                    isActive.set(false);
-                    isCompleted.set(true);
-                    emitters.remove("all");
-                    pingThread.interrupt();
-                    emitter.completeWithError(e);
-                }
-            }
-
-            @Override
-            public void onError(Throwable t) {
-                isActive.set(false);
-                isCompleted.set(true);
-                emitters.remove("all");
-                pingThread.interrupt();
-                emitter.completeWithError(t);
-            }
-
-            @Override
-            public void onCompleted() {
-                isActive.set(false);
-                isCompleted.set(true);
-                emitters.remove("all");
-                pingThread.interrupt();
-                emitter.complete();
-            }
-        });
-
-        return emitter;
+        return createSubscription("all", SubscribeRequest.newBuilder().build());
     }
 
+    /**
+     * Unsubscribes a client from updates for a specific hero.
+     * Removes the emitter from the map and completes it.
+     *
+     * @param heroId The ID of the hero to unsubscribe from
+     */
     @PostMapping("/unsubscribe/{heroId}")
     public void unsubscribe(@PathVariable String heroId) {
         SseEmitter emitter = emitters.remove(heroId);
         if (emitter != null) {
             emitter.complete();
+        }
+    }
+
+    /**
+     * Creates a new subscription with the specified ID and request.
+     * Sets up the SSE emitter, ping thread, and gRPC subscription.
+     *
+     * @param subscriptionId The ID for this subscription (hero ID or "all")
+     * @param request The gRPC subscription request
+     * @return The configured SseEmitter
+     */
+    private SseEmitter createSubscription(String subscriptionId, SubscribeRequest request) {
+        // Create a new SSE emitter with a 5-minute timeout
+        SseEmitter emitter = new SseEmitter(300000L);
+        emitters.put(subscriptionId, emitter);
+        
+        // Flags to track the connection state
+        AtomicBoolean isActive = new AtomicBoolean(true);
+        AtomicBoolean isCompleted = new AtomicBoolean(false);
+
+        // Set up the ping thread to keep the connection alive
+        Thread pingThread = startPingThread(emitter, subscriptionId, isActive, isCompleted);
+        
+        // Configure completion and timeout handlers
+        setupEmitterHandlers(emitter, subscriptionId, isActive, isCompleted, pingThread);
+        
+        // Set up the gRPC subscription
+        setupGrpcSubscription(emitter, subscriptionId, isActive, isCompleted, pingThread, request);
+
+        return emitter;
+    }
+
+    /**
+     * Creates and starts a background thread that sends periodic pings to keep the SSE connection alive.
+     *
+     * @param emitter The SSE emitter to send pings to
+     * @param subscriptionId The ID of this subscription
+     * @param isActive Flag indicating if the subscription is active
+     * @param isCompleted Flag indicating if the subscription is completed
+     * @return The started ping thread
+     */
+    private Thread startPingThread(SseEmitter emitter, String subscriptionId, 
+                                 AtomicBoolean isActive, AtomicBoolean isCompleted) {
+        Thread pingThread = new Thread(() -> {
+            while (isActive.get() && !Thread.currentThread().isInterrupted()) {
+                try {
+                    if (!isCompleted.get()) {
+                        try {
+                            emitter.send("ping");
+                        } catch (IOException e) {
+                            isActive.set(false);
+                            break;
+                        }
+                    } else {
+                        isActive.set(false);
+                        break;
+                    }
+                    Thread.sleep(60000); // Send ping every 60 seconds
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                } catch (Exception e) {
+                    System.err.println("Error in ping thread: " + e.getMessage());
+                }
+            }
+            cleanupSubscription(subscriptionId, emitter, isActive, isCompleted);
+        });
+        pingThread.setDaemon(true);
+        pingThread.start();
+        return pingThread;
+    }
+
+    /**
+     * Sets up the completion and timeout handlers for the SSE emitter.
+     *
+     * @param emitter The SSE emitter to configure
+     * @param subscriptionId The ID of this subscription
+     * @param isActive Flag indicating if the subscription is active
+     * @param isCompleted Flag indicating if the subscription is completed
+     * @param pingThread The ping thread to interrupt on completion/timeout
+     */
+    private void setupEmitterHandlers(SseEmitter emitter, String subscriptionId,
+                                    AtomicBoolean isActive, AtomicBoolean isCompleted,
+                                    Thread pingThread) {
+        // Handle normal completion (client disconnection)
+        emitter.onCompletion(() -> {
+            isActive.set(false);
+            isCompleted.set(true);
+            emitters.remove(subscriptionId);
+            pingThread.interrupt();
+        });
+
+        // Handle timeout
+        emitter.onTimeout(() -> {
+            isActive.set(false);
+            isCompleted.set(true);
+            emitters.remove(subscriptionId);
+            pingThread.interrupt();
+            emitter.complete();
+        });
+    }
+
+    /**
+     * Sets up the gRPC subscription and configures the StreamObserver to handle updates.
+     *
+     * @param emitter The SSE emitter to send updates to
+     * @param subscriptionId The ID of this subscription
+     * @param isActive Flag indicating if the subscription is active
+     * @param isCompleted Flag indicating if the subscription is completed
+     * @param pingThread The ping thread to interrupt on errors
+     * @param request The gRPC subscription request
+     */
+    private void setupGrpcSubscription(SseEmitter emitter, String subscriptionId,
+                                     AtomicBoolean isActive, AtomicBoolean isCompleted,
+                                     Thread pingThread, SubscribeRequest request) {
+        asyncStub.subscribeToUpdates(request, new StreamObserver<HeroUpdate>() {
+            @Override
+            public void onNext(HeroUpdate update) {
+                if (!isActive.get() || isCompleted.get()) {
+                    return;
+                }
+                try {
+                    // Convert the gRPC update to a map and send it to the client
+                    Map<String, Object> updateMap = Converter.convertHeroUpdateToMap(update);
+                    emitter.send(updateMap, MediaType.APPLICATION_JSON);
+                } catch (IOException e) {
+                    handleError(e);
+                } catch (Exception e) {
+                    handleError(e);
+                }
+            }
+
+            @Override
+            public void onError(Throwable t) {
+                handleError(t);
+            }
+
+            @Override
+            public void onCompleted() {
+                cleanupSubscription(subscriptionId, emitter, isActive, isCompleted);
+                pingThread.interrupt();
+            }
+
+            /**
+             * Handles errors from the gRPC stream or SSE emitter.
+             * Cleans up resources and completes the emitter appropriately.
+             *
+             * @param t The error that occurred
+             */
+            private void handleError(Throwable t) {
+                isActive.set(false);
+                isCompleted.set(true);
+                emitters.remove(subscriptionId);
+                pingThread.interrupt();
+                if (t instanceof Exception) {
+                    emitter.completeWithError((Exception) t);
+                } else {
+                    emitter.complete();
+                }
+            }
+        });
+    }
+
+    /**
+     * Cleans up resources when a subscription ends.
+     * Removes the emitter from the map and completes it if necessary.
+     *
+     * @param subscriptionId The ID of the subscription to clean up
+     * @param emitter The SSE emitter to complete
+     * @param isActive Flag indicating if the subscription is active
+     * @param isCompleted Flag indicating if the subscription is completed
+     */
+    private void cleanupSubscription(String subscriptionId, SseEmitter emitter,
+                                   AtomicBoolean isActive, AtomicBoolean isCompleted) {
+        if (isActive.get()) {
+            isActive.set(false);
+            emitters.remove(subscriptionId);
+            if (!isCompleted.get()) {
+                emitter.complete();
+            }
         }
     }
 } 

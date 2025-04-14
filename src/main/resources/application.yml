@@ -43,6 +43,12 @@ grpc:
       max-connection-age-grace: 5
       permit-keep-alive-time: 5
       permit-keep-alive-without-calls: true
+    channel:
+      host: localhost
+      keep-alive:
+        time: ${grpc.server.netty.keep-alive-time}
+        timeout: ${grpc.server.netty.keep-alive-timeout}
+        without-calls: ${grpc.server.netty.keep-alive-without-calls}
 
 # Logging Configuration (common for all profiles)
 logging:
