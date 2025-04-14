@@ -275,9 +275,24 @@
         .cache-container::-webkit-scrollbar-thumb:hover {
             background: #555;
         }
+        .subscribe-all {
+            margin: 15px 0;
+        }
+        .subscribe-all label {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #333;
+            cursor: pointer;
+        }
+        .subscribe-all input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            margin-right: 10px;
+            cursor: pointer;
+        }
     </style>
 </head>
-<body>
+<body onload="handleSubscribeAll(true)">
     <h1>SuperHero Notification Client</h1>
     <div class="container">
         <div class="left-panel">
@@ -303,9 +318,13 @@
             <h2>Hero Subscription <div id="status" class="status disconnected">Disconnected</div></h2>
             <div class="subscription-section">
                 <label for="heroId">Hero ID:</label>
-                <input type="text" id="heroId" value="620">
+                <input type="text" id="heroId" value="1">
                 <button onclick="subscribe()">Subscribe</button>
                 <button onclick="unsubscribe()">Unsubscribe</button>
+                <div class="subscribe-all">
+                    <input type="checkbox" id="subscribeAll" onchange="handleSubscribeAll(this.checked)" checked>
+                    <label for="subscribeAll">Subscribe to all hero updates</label>
+                </div>
             </div>
             <div id="subscriptions">
                 <h3>Subscribed Heroes</h3>

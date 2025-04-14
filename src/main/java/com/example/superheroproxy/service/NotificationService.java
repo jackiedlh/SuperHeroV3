@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.grpc.stub.StreamObserver;
+import io.grpc.stub.ServerCallStreamObserver;
 import net.devh.boot.grpc.server.service.GrpcService;
 
 @GrpcService
@@ -26,25 +27,41 @@ public class NotificationService extends NotificationServiceGrpc.NotificationSer
     public void subscribeToUpdates(SubscribeRequest request, StreamObserver<HeroUpdate> responseObserver) {
         logger.info("New subscription request received");
         
+        // Cast to ServerCallStreamObserver to handle cancellation
+        ServerCallStreamObserver<HeroUpdate> serverCallStreamObserver = 
+            (ServerCallStreamObserver<HeroUpdate>) responseObserver;
+            
+        // Set up cancellation handler
+        serverCallStreamObserver.setOnCancelHandler(() -> {
+            logger.info("Client cancelled the stream");
+            removeSubscriber(responseObserver);
+        });
+        
         // Create a wrapper StreamObserver that handles client disconnection
         StreamObserver<HeroUpdate> wrappedObserver = new StreamObserver<>() {
             @Override
             public void onNext(HeroUpdate value) {
-                responseObserver.onNext(value);
+                if (!serverCallStreamObserver.isCancelled()) {
+                    responseObserver.onNext(value);
+                }
             }
 
             @Override
             public void onError(Throwable t) {
                 logger.info("Client disconnected with error", t);
                 removeSubscriber(responseObserver);
-                responseObserver.onError(t);
+                if (!serverCallStreamObserver.isCancelled()) {
+                    responseObserver.onError(t);
+                }
             }
 
             @Override
             public void onCompleted() {
                 logger.info("Client disconnected");
                 removeSubscriber(responseObserver);
-                responseObserver.onCompleted();
+                if (!serverCallStreamObserver.isCancelled()) {
+                    responseObserver.onCompleted();
+                }
             }
         };
         
@@ -74,7 +91,13 @@ public class NotificationService extends NotificationServiceGrpc.NotificationSer
         if (specificSubscribers != null) {
             specificSubscribers.forEach(subscriber -> {
                 try {
-                    subscriber.onNext(update);
+                    if (subscriber instanceof ServerCallStreamObserver) {
+                        if (!((ServerCallStreamObserver<HeroUpdate>) subscriber).isCancelled()) {
+                            subscriber.onNext(update);
+                        }
+                    } else {
+                        subscriber.onNext(update);
+                    }
                 } catch (Exception e) {
                     logger.error("Error sending update to subscriber", e);
                     removeSubscriber(subscriber);
@@ -85,7 +108,13 @@ public class NotificationService extends NotificationServiceGrpc.NotificationSer
         // Notify all subscribers
         allSubscribers.forEach(subscriber -> {
             try {
-                subscriber.onNext(update);
+                if (subscriber instanceof ServerCallStreamObserver) {
+                    if (!((ServerCallStreamObserver<HeroUpdate>) subscriber).isCancelled()) {
+                        subscriber.onNext(update);
+                    }
+                } else {
+                    subscriber.onNext(update);
+                }
             } catch (Exception e) {
                 logger.error("Error sending update to subscriber", e);
                 removeSubscriber(subscriber);

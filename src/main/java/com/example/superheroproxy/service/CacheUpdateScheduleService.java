@@ -100,7 +100,7 @@ public class CacheUpdateScheduleService {
         cleanupMonitoredHeroes();
     }
 
-    //Mock for update hero
+    //Mock for update hero //TODO: remove it for release
     private boolean foreUpdate() {
         return Math.random() < 0.3;
     }
@@ -110,13 +110,20 @@ public class CacheUpdateScheduleService {
             String htmlContent = restTemplate.getForObject(heroIdsUrl, String.class);
             Map<String, String> superheroIds = SuperheroIdParser.parseSuperheroIds(htmlContent);
 
-
-            superheroIds.keySet().forEach(heroId ->{
+            //for local server performance, only get first 20 heroes  //TODO: remove for release
+            superheroIds.keySet().stream().limit(20).forEach(heroId -> {
                 if (!monitoredHeroes.contains(heroId)) {
                     logger.info("Found new hero ID: {}", heroId);
                     addHeroToMonitor(heroId);
                 }
             });
+
+//            superheroIds.keySet().forEach(heroId ->{
+//                if (!monitoredHeroes.contains(heroId)) {
+//                    logger.info("Found new hero ID: {}", heroId);
+//                    addHeroToMonitor(heroId);
+//                }
+//            });
 
 
         } catch (Exception e) {

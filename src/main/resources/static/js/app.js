@@ -104,6 +104,60 @@ function cancelSubscribedEdit() {
     showSubscribedHeroDetails(heroId);
 }
 
+function handleSubscribeAll(checked) {
+    if (checked) {
+        // Close existing connection if any
+        if (eventSource) {
+            eventSource.close();
+        }
+
+        // Create new EventSource for all heroes
+        eventSource = new EventSource(`${baseUrl}/api/notifications/subscribe`);
+        updateStatus(true);
+        reconnectAttempts = 0;
+        subscribedHeroes.clear();
+        updateSubscriptionList();
+        document.getElementById('subscribedHeroDetails').innerHTML = '<h3>Subscribed to all heroes</h3>';
+
+        eventSource.onmessage = function(event) {
+            try {
+                if (event.data === 'ping') {
+                    // Handle ping message
+                    const pingElement = document.createElement('div');
+                    pingElement.className = 'update ping';
+                    pingElement.textContent = 'Ping received';
+                    document.getElementById('updates').appendChild(pingElement);
+                    return;
+                }
+
+                const update = JSON.parse(event.data);
+                const hero = update.hero;
+                
+                const updateElement = document.createElement('div');
+                updateElement.className = 'update';
+                updateElement.innerHTML = `
+                    <strong>${hero.name}</strong><br>
+                    Power Stats: ${JSON.stringify(hero.powerstats)}<br>
+                    Biography: ${JSON.stringify(hero.biography)}
+                `;
+                document.getElementById('updates').appendChild(updateElement);
+            } catch (error) {
+                addUpdate('Error parsing update: ' + error.message, true);
+            }
+        };
+    } else {
+        // Unsubscribe from all heroes
+        if (eventSource) {
+            eventSource.close();
+            eventSource = null;
+            updateStatus(false);
+            subscribedHeroes.clear();
+            updateSubscriptionList();
+            document.getElementById('subscribedHeroDetails').innerHTML = '<h3>No hero subscribed yet</h3>';
+        }
+    }
+}
+
 function subscribe() {
     const heroId = document.getElementById('heroId').value;
     

@@ -28,7 +28,7 @@ public final class SuperheroIdParser {
             Document doc = Jsoup.parse(htmlContent);
             Elements tables = doc.select("table.table-striped");
 
-            for (Element table : tables.subList(0,20)) {
+            for (Element table : tables) {
 
                 Elements rows = table.select("tbody tr");
                 for (Element row : rows) {
