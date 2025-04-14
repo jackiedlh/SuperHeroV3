@@ -1,14 +1,14 @@
 package com.example.superheroproxy.service;
 
+import com.example.superheroproxy.config.TestRestTemplate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
+
 import org.mockito.Mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 import org.mockito.MockitoAnnotations;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
@@ -37,7 +37,7 @@ public class CacheUpdateServiceTest {
     void setUp() {
         MockitoAnnotations.openMocks(this);
         when(cacheManager.getCache(anyString())).thenReturn(cache);
-        cacheUpdateService = new CacheUpdateService(cacheManager, notificationService, externalAPIService);
+        cacheUpdateService = new CacheUpdateService(cacheManager, notificationService, externalAPIService,  mock(TestRestTemplate.class));
     }
 
     @Test
@@ -62,7 +62,7 @@ public class CacheUpdateServiceTest {
 
         verify(externalAPIService).getHero(heroId);
         verify(cache).put(eq(heroId), any(Hero.class));
-        verify(notificationService).notifyHeroUpdate(eq(heroId), any(Hero.class));
+        verify(notificationService).notifyHeroUpdate(eq(heroId), any(Hero.class), any());
     }
 
     @Test
@@ -92,6 +92,6 @@ public class CacheUpdateServiceTest {
 
         verify(externalAPIService).getHero(heroId);
         verify(cache, never()).put(anyString(), any());
-        verify(notificationService, never()).notifyHeroUpdate(anyString(), any());
+        verify(notificationService, never()).notifyHeroUpdate(anyString(), any(),any());
     }
 } 

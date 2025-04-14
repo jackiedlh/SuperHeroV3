@@ -5,13 +5,9 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import com.example.superheroproxy.proto.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.example.superheroproxy.proto.Hero;
-import com.example.superheroproxy.proto.HeroUpdate;
-import com.example.superheroproxy.proto.NotificationServiceGrpc;
-import com.example.superheroproxy.proto.SubscribeRequest;
 
 import io.grpc.stub.StreamObserver;
 import net.devh.boot.grpc.server.service.GrpcService;
@@ -64,12 +60,13 @@ public class NotificationService extends NotificationServiceGrpc.NotificationSer
         }
     }
 
-    public void notifyHeroUpdate(String heroId, Hero hero) {
-        logger.debug("Notifying subscribers update for hero ID: {}", heroId);
+    public void notifyHeroUpdate(String heroId, Hero hero, UpdateType updateType) {
+        logger.debug("Notifying subscribers about {} update for hero ID: {}", updateType, heroId);
         
         HeroUpdate update = HeroUpdate.newBuilder()
                 .setHeroId(heroId)
                 .setHero(hero)
+                .setUpdateType(updateType)
                 .build();
 
         // Notify specific hero subscribers

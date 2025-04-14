@@ -23,6 +23,10 @@ public class NotificationController {
     private final ManagedChannel channel;
     private final NotificationServiceGrpc.NotificationServiceStub asyncStub;
 
+    /**
+     * This controller is only for test out notification grpc service
+     * @param grpcPort
+     */
     public NotificationController(@Value("${grpc.server.port}") int grpcPort) {
         this.channel = ManagedChannelBuilder.forAddress("localhost", grpcPort)
                 .usePlaintext()

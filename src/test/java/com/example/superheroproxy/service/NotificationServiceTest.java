@@ -3,6 +3,7 @@ package com.example.superheroproxy.service;
 import com.example.superheroproxy.proto.Hero;
 import com.example.superheroproxy.proto.HeroUpdate;
 import com.example.superheroproxy.proto.SubscribeRequest;
+import com.example.superheroproxy.proto.UpdateType;
 import com.example.superheroproxy.utils.ResponseGenerator;
 import io.grpc.stub.StreamObserver;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,7 +41,7 @@ class NotificationServiceTest {
 
         // Create a hero update
         Hero hero = ResponseGenerator.generateHero(MOCK_RESPONSE);
-        notificationService.notifyHeroUpdate("620", hero);
+        notificationService.notifyHeroUpdate("620", hero, UpdateType.UPDATED);
 
         // Verify that the observer received the update
         ArgumentCaptor<HeroUpdate> updateCaptor = ArgumentCaptor.forClass(HeroUpdate.class);
@@ -61,7 +62,7 @@ class NotificationServiceTest {
 
         // Create a hero update
         Hero hero = ResponseGenerator.generateHero(MOCK_RESPONSE);
-        notificationService.notifyHeroUpdate("620", hero);
+        notificationService.notifyHeroUpdate("620", hero, UpdateType.UPDATED);
 
         // Verify that the observer received the update
         ArgumentCaptor<HeroUpdate> updateCaptor = ArgumentCaptor.forClass(HeroUpdate.class);
@@ -88,7 +89,7 @@ class NotificationServiceTest {
 
         // Create a hero update
         Hero hero = ResponseGenerator.generateHero(MOCK_RESPONSE);
-        notificationService.notifyHeroUpdate("620", hero);
+        notificationService.notifyHeroUpdate("620", hero, UpdateType.UPDATED);
 
         // Verify that both observers received the update
         verify(observer1).onNext(any(HeroUpdate.class));
@@ -125,7 +126,7 @@ class NotificationServiceTest {
 
         // Create a hero update
         Hero hero = ResponseGenerator.generateHero(MOCK_RESPONSE);
-        notificationService.notifyHeroUpdate("620", hero);
+        notificationService.notifyHeroUpdate("620", hero, UpdateType.UPDATED);
 
         // Verify that the disconnected subscriber was removed
         // and the remaining subscriber still received the update

@@ -2,6 +2,7 @@ package com.example.superheroproxy.service;
 
 import com.example.superheroproxy.proto.Hero;
 import com.example.superheroproxy.proto.SearchResponse;
+import com.example.superheroproxy.proto.UpdateType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,7 +80,7 @@ public class SuperheroInnerService {
 
             // Notify subscribers about the initial data
             if (hero != null) {
-                notificationService.notifyHeroUpdate(id, hero);
+                notificationService.notifyHeroUpdate(id, hero, UpdateType.NEW);
             }
 
             return hero;

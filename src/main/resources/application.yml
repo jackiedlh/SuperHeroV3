@@ -17,6 +17,8 @@ superhero:
     url: https://superheroapi.com/api
     token: 1b3bc65ad40627f75f8edcdfbc67831d
 
+    ids:
+      url: https://superheroapi.com/ids.html
   cache:
     update:
       interval: 60  # 1 minute in seconds (test only)

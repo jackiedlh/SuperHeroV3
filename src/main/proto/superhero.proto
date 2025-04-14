@@ -4,7 +4,7 @@ option java_multiple_files = true;
 option java_package = "com.example.superheroproxy.proto";
 option java_outer_classname = "SuperheroProto";
 
-package superhero;
+package com.example.superheroproxy.proto;
 
 // The superhero search service definition
 service SuperheroService {

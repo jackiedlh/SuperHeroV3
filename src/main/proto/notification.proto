@@ -1,27 +1,29 @@
 syntax = "proto3";
 
-import "superhero.proto";
+package com.example.superheroproxy.proto;
 
 option java_multiple_files = true;
 option java_package = "com.example.superheroproxy.proto";
 option java_outer_classname = "NotificationProto";
 
-package notification;
+import "superhero.proto";
 
-// The notification service definition
-service NotificationService {
-  // Subscribe to hero updates
-  rpc SubscribeToUpdates (SubscribeRequest) returns (stream HeroUpdate) {}
-}
-
-// The request message containing the hero ids to subscribe to
-message SubscribeRequest {
-  repeated string hero_ids = 1;
-}
-
-// The response message containing the hero update
 message HeroUpdate {
-  string hero_id = 1;
-  superhero.Hero hero = 2;
+    string hero_id = 1;
+    Hero hero = 2;
+    UpdateType update_type = 3;
 }
 
+enum UpdateType {
+    NEW = 0;
+    UPDATED = 1;
+    DELETED = 2;
+}
+
+message SubscribeRequest {
+    repeated string hero_ids = 1;
+}
+
+service NotificationService {
+    rpc SubscribeToUpdates(SubscribeRequest) returns (stream HeroUpdate);
+} 

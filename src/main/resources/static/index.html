@@ -43,11 +43,11 @@
             font-size: 0.8em;
         }
         .status {
-            position: fixed;
-            top: 10px;
-            right: 10px;
+            display: inline-block;
+            margin-left: 10px;
             padding: 5px 10px;
             border-radius: 3px;
+            position: static;
         }
         .connected {
             background-color: #dff0d8;
@@ -267,7 +267,7 @@
                     </table>
                 </div>
             </div>
-            <h2>Hero Subscription</h2>
+            <h2>Hero Subscription <div id="status" class="status disconnected">Disconnected</div></h2>
             <div class="subscription-section">
                 <label for="heroId">Hero ID:</label>
                 <input type="text" id="heroId" value="620">
@@ -282,7 +282,6 @@
                 <h3>Subscribed Hero Details</h3>
                 <p>No hero subscribed yet</p>
             </div>
-            <div id="status" class="status disconnected">Disconnected</div>
             <div id="updates"></div>
         </div>
         <div class="right-panel">
