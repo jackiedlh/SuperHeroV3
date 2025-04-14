@@ -19,6 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.HashMap;
+import java.io.IOException;
 
 @RestController
 @RequestMapping("/api/notifications")
@@ -83,34 +84,64 @@ public class NotificationController {
 
     @GetMapping(value = "/subscribe/{heroId}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter subscribe(@PathVariable String heroId) {
-        SseEmitter emitter = new SseEmitter(0L); // No timeout
+        // Set a timeout of 5 minutes
+        SseEmitter emitter = new SseEmitter(300000L);
         emitters.put(heroId, emitter);
         AtomicBoolean isActive = new AtomicBoolean(true);
+        AtomicBoolean isCompleted = new AtomicBoolean(false);
 
-        // Send a ping every 30 seconds to keep the connection alive
+        // Send a ping every 60 seconds to keep the connection alive
         Thread pingThread = new Thread(() -> {
-            while (isActive.get()) {
+            while (isActive.get() && !Thread.currentThread().isInterrupted()) {
                 try {
-                    emitter.send("ping");
-                    Thread.sleep(30000);
-                } catch (Exception e) {
-                    isActive.set(false);
+                    if (!isCompleted.get()) {
+                        try {
+                            emitter.send("ping");
+                        } catch (IOException e) {
+                            // Client disconnected, stop the ping thread
+                            isActive.set(false);
+                            break;
+                        }
+                    } else {
+                        isActive.set(false);
+                        break;
+                    }
+                    Thread.sleep(60000);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
                     break;
+                } catch (Exception e) {
+                    // Log other errors but continue
+                    System.err.println("Error in ping thread: " + e.getMessage());
+                }
+            }
+            // Clean up if thread exits
+            if (isActive.get()) {
+                isActive.set(false);
+                emitters.remove(heroId);
+                if (!isCompleted.get()) {
+                    emitter.complete();
                 }
             }
         });
         pingThread.setDaemon(true);
         pingThread.start();
 
-        // Handle completion and timeout
+        // Handle completion
         emitter.onCompletion(() -> {
             isActive.set(false);
+            isCompleted.set(true);
             emitters.remove(heroId);
+            pingThread.interrupt();
         });
 
+        // Handle timeout
         emitter.onTimeout(() -> {
             isActive.set(false);
+            isCompleted.set(true);
             emitters.remove(heroId);
+            pingThread.interrupt();
+            emitter.complete();
         });
 
         SubscribeRequest request = SubscribeRequest.newBuilder()
@@ -120,11 +151,25 @@ public class NotificationController {
         asyncStub.subscribeToUpdates(request, new StreamObserver<HeroUpdate>() {
             @Override
             public void onNext(HeroUpdate update) {
+                if (!isActive.get() || isCompleted.get()) {
+                    return;
+                }
                 try {
-                    emitter.send(convertHeroUpdateToMap(update));
-                } catch (Exception e) {
+                    Map<String, Object> updateMap = convertHeroUpdateToMap(update);
+                    emitter.send(updateMap, MediaType.APPLICATION_JSON);
+                } catch (IOException e) {
+                    // Client disconnected
                     isActive.set(false);
+                    isCompleted.set(true);
                     emitters.remove(heroId);
+                    pingThread.interrupt();
+                    emitter.complete();
+                } catch (Exception e) {
+                    // Other errors
+                    isActive.set(false);
+                    isCompleted.set(true);
+                    emitters.remove(heroId);
+                    pingThread.interrupt();
                     emitter.completeWithError(e);
                 }
             }
@@ -132,14 +177,18 @@ public class NotificationController {
             @Override
             public void onError(Throwable t) {
                 isActive.set(false);
+                isCompleted.set(true);
                 emitters.remove(heroId);
+                pingThread.interrupt();
                 emitter.completeWithError(t);
             }
 
             @Override
             public void onCompleted() {
                 isActive.set(false);
+                isCompleted.set(true);
                 emitters.remove(heroId);
+                pingThread.interrupt();
                 emitter.complete();
             }
         });
@@ -149,34 +198,64 @@ public class NotificationController {
 
     @GetMapping(value = "/subscribe", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter subscribeAll() {
-        SseEmitter emitter = new SseEmitter(0L); // No timeout
+        // Set a timeout of 5 minutes
+        SseEmitter emitter = new SseEmitter(300000L);
         emitters.put("all", emitter);
         AtomicBoolean isActive = new AtomicBoolean(true);
+        AtomicBoolean isCompleted = new AtomicBoolean(false);
 
-        // Send a ping every 30 seconds to keep the connection alive
+        // Send a ping every 60 seconds to keep the connection alive
         Thread pingThread = new Thread(() -> {
-            while (isActive.get()) {
+            while (isActive.get() && !Thread.currentThread().isInterrupted()) {
                 try {
-                    emitter.send("ping");
-                    Thread.sleep(30000);
-                } catch (Exception e) {
-                    isActive.set(false);
+                    if (!isCompleted.get()) {
+                        try {
+                            emitter.send("ping");
+                        } catch (IOException e) {
+                            // Client disconnected, stop the ping thread
+                            isActive.set(false);
+                            break;
+                        }
+                    } else {
+                        isActive.set(false);
+                        break;
+                    }
+                    Thread.sleep(60000);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
                     break;
+                } catch (Exception e) {
+                    // Log other errors but continue
+                    System.err.println("Error in ping thread: " + e.getMessage());
+                }
+            }
+            // Clean up if thread exits
+            if (isActive.get()) {
+                isActive.set(false);
+                emitters.remove("all");
+                if (!isCompleted.get()) {
+                    emitter.complete();
                 }
             }
         });
         pingThread.setDaemon(true);
         pingThread.start();
 
-        // Handle completion and timeout
+        // Handle completion
         emitter.onCompletion(() -> {
             isActive.set(false);
+            isCompleted.set(true);
             emitters.remove("all");
+            pingThread.interrupt();
         });
 
+        // Handle timeout
         emitter.onTimeout(() -> {
             isActive.set(false);
+            isCompleted.set(true);
             emitters.remove("all");
+            pingThread.interrupt();
+            emitter.complete();
         });
 
         SubscribeRequest request = SubscribeRequest.newBuilder().build();
@@ -184,11 +263,25 @@ public class NotificationController {
         asyncStub.subscribeToUpdates(request, new StreamObserver<HeroUpdate>() {
             @Override
             public void onNext(HeroUpdate update) {
+                if (!isActive.get() || isCompleted.get()) {
+                    return;
+                }
                 try {
-                    emitter.send(convertHeroUpdateToMap(update));
-                } catch (Exception e) {
+                    Map<String, Object> updateMap = convertHeroUpdateToMap(update);
+                    emitter.send(updateMap, MediaType.APPLICATION_JSON);
+                } catch (IOException e) {
+                    // Client disconnected
                     isActive.set(false);
+                    isCompleted.set(true);
                     emitters.remove("all");
+                    pingThread.interrupt();
+                    emitter.complete();
+                } catch (Exception e) {
+                    // Other errors
+                    isActive.set(false);
+                    isCompleted.set(true);
+                    emitters.remove("all");
+                    pingThread.interrupt();
                     emitter.completeWithError(e);
                 }
             }
@@ -196,14 +289,18 @@ public class NotificationController {
             @Override
             public void onError(Throwable t) {
                 isActive.set(false);
+                isCompleted.set(true);
                 emitters.remove("all");
+                pingThread.interrupt();
                 emitter.completeWithError(t);
             }
 
             @Override
             public void onCompleted() {
                 isActive.set(false);
+                isCompleted.set(true);
                 emitters.remove("all");
+                pingThread.interrupt();
                 emitter.complete();
             }
         });

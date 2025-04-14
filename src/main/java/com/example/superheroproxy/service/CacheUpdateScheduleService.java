@@ -81,7 +81,7 @@ public class CacheUpdateScheduleService {
                     cache.put(heroId, newHero);
                     logger.info("Added new hero to cache: {}", heroId);
                     notificationService.notifyHeroUpdate(heroId, newHero, UpdateType.NEW);
-                } else if (!cachedHero.equals(newHero) || foreUpdate()) {
+                } else if (!cachedHero.equals(newHero) || foreUpdate(newHero)) {
                     cache.put(heroId, newHero);
                     logger.info("Updated cache for hero: {}", heroId);
                     notificationService.notifyHeroUpdate(heroId, newHero, UpdateType.UPDATED);
@@ -101,8 +101,8 @@ public class CacheUpdateScheduleService {
     }
 
     //Mock for update hero //TODO: remove it for release
-    private boolean foreUpdate() {
-        return Math.random() < 0.3;
+    private boolean foreUpdate(Hero newHero) {
+        return Math.random() < 0.3 || Integer.parseInt(newHero.getId())<=5;
     }
 
     private void checkForNewHeroes() {
