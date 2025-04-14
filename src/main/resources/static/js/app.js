@@ -117,7 +117,7 @@ function handleSubscribeAll(checked) {
         reconnectAttempts = 0;
         subscribedHeroes.clear();
         updateSubscriptionList();
-        document.getElementById('subscribedHeroDetails').innerHTML = '<h3>Subscribed to all heroes</h3>';
+        //document.getElementById('subscribedHeroDetails').innerHTML = '<h3>Subscribed to all heroes</h3>';
 
         eventSource.onmessage = function(event) {
             try {

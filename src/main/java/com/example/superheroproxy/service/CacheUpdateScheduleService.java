@@ -110,8 +110,12 @@ public class CacheUpdateScheduleService {
             String htmlContent = restTemplate.getForObject(heroIdsUrl, String.class);
             Map<String, String> superheroIds = SuperheroIdParser.parseSuperheroIds(htmlContent);
 
-            //for local server performance, only get first 20 heroes  //TODO: remove for release
-            superheroIds.keySet().stream().limit(20).forEach(heroId -> {
+
+
+            //for local server performance, only get first 20 heroes, and add 2 more for next //TODO: remove for release
+            int size = monitoredHeroes.isEmpty()? 20: Math.min(monitoredHeroes.size()+2, superheroIds.size());
+
+            superheroIds.keySet().stream().limit(size).forEach(heroId -> {
                 if (!monitoredHeroes.contains(heroId)) {
                     logger.info("Found new hero ID: {}", heroId);
                     addHeroToMonitor(heroId);
