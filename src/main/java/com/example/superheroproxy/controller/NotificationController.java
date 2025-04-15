@@ -1,10 +1,12 @@
 package com.example.superheroproxy.controller;
 
 import com.example.superheroproxy.proto.HeroUpdate;
-import com.example.superheroproxy.proto.NotificationServiceGrpc;
 import com.example.superheroproxy.proto.SubscribeRequest;
 import com.example.superheroproxy.utils.Converter;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.grpc.stub.StreamObserver;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
@@ -29,15 +31,21 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @RestController
 @RequestMapping("/api/notifications")
 public class NotificationController {
+    private static final Logger logger = LoggerFactory.getLogger(NotificationController.class);
+    private static final long SSE_TIMEOUT = 300_000L; // 5 minutes
+    private static final long PING_INTERVAL = 60_000L; // 1 minute
+
     /** Map to store active SSE emitters for each subscription (hero ID or "all") */
     private final Map<String, SseEmitter> emitters = new ConcurrentHashMap<>();
     
     /** gRPC channel for communication with the notification service */
-    private final NotificationServiceGrpc.NotificationServiceStub asyncStub;
+    private final SuperheroGrpcClient grpcClient;
+    private final ObjectMapper objectMapper;
 
     @Autowired
-    public NotificationController(SuperheroGrpcClient superheroGrpcClient) {
-        this.asyncStub = NotificationServiceGrpc.newStub(superheroGrpcClient.channel);
+    public NotificationController(SuperheroGrpcClient grpcClient, ObjectMapper objectMapper) {
+        this.grpcClient = grpcClient;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -87,7 +95,7 @@ public class NotificationController {
      */
     private SseEmitter createSubscription(String subscriptionId, SubscribeRequest request) {
         // Create a new SSE emitter with a 5-minute timeout
-        SseEmitter emitter = new SseEmitter(300000L);
+        SseEmitter emitter = new SseEmitter(SSE_TIMEOUT);
         emitters.put(subscriptionId, emitter);
         
         // Flags to track the connection state
@@ -122,8 +130,9 @@ public class NotificationController {
                 try {
                     if (!isCompleted.get()) {
                         try {
-                            emitter.send("ping");
+                            emitter.send(SseEmitter.event().name("ping").data("ping"));
                         } catch (IOException e) {
+                            logger.warn("Failed to send ping to subscription {}: {}", subscriptionId, e.getMessage());
                             isActive.set(false);
                             break;
                         }
@@ -131,12 +140,12 @@ public class NotificationController {
                         isActive.set(false);
                         break;
                     }
-                    Thread.sleep(60000); // Send ping every 60 seconds
+                    Thread.sleep(PING_INTERVAL);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     break;
                 } catch (Exception e) {
-                    System.err.println("Error in ping thread: " + e.getMessage());
+                    logger.error("Error in ping thread for subscription {}: {}", subscriptionId, e.getMessage());
                 }
             }
             cleanupSubscription(subscriptionId, emitter, isActive, isCompleted);
@@ -160,6 +169,7 @@ public class NotificationController {
                                     Thread pingThread) {
         // Handle normal completion (client disconnection)
         emitter.onCompletion(() -> {
+            logger.info("SSE connection completed for subscription {}", subscriptionId);
             isActive.set(false);
             isCompleted.set(true);
             emitters.remove(subscriptionId);
@@ -168,6 +178,7 @@ public class NotificationController {
 
         // Handle timeout
         emitter.onTimeout(() -> {
+            logger.warn("SSE connection timed out for subscription {}", subscriptionId);
             isActive.set(false);
             isCompleted.set(true);
             emitters.remove(subscriptionId);
@@ -189,30 +200,36 @@ public class NotificationController {
     private void setupGrpcSubscription(SseEmitter emitter, String subscriptionId,
                                      AtomicBoolean isActive, AtomicBoolean isCompleted,
                                      Thread pingThread, SubscribeRequest request) {
-        asyncStub.subscribeToUpdates(request, new StreamObserver<HeroUpdate>() {
+        grpcClient.subscribeToUpdates(request, new StreamObserver<HeroUpdate>() {
             @Override
             public void onNext(HeroUpdate update) {
                 if (!isActive.get() || isCompleted.get()) {
                     return;
                 }
                 try {
-                    // Convert the gRPC update to a map and send it to the client
                     Map<String, Object> updateMap = Converter.convertHeroUpdateToMap(update);
-                    emitter.send(updateMap, MediaType.APPLICATION_JSON);
+                    String json = objectMapper.writeValueAsString(updateMap);
+                    emitter.send(SseEmitter.event()
+                            .name("update")
+                            .data(json, MediaType.APPLICATION_JSON));
                 } catch (IOException e) {
+                    logger.error("Failed to send update to subscription {}: {}", subscriptionId, e.getMessage());
                     handleError(e);
                 } catch (Exception e) {
+                    logger.error("Error processing update for subscription {}: {}", subscriptionId, e.getMessage());
                     handleError(e);
                 }
             }
 
             @Override
             public void onError(Throwable t) {
+                logger.error("gRPC error for subscription {}: {}", subscriptionId, t.getMessage());
                 handleError(t);
             }
 
             @Override
             public void onCompleted() {
+                logger.info("gRPC stream completed for subscription {}", subscriptionId);
                 cleanupSubscription(subscriptionId, emitter, isActive, isCompleted);
                 pingThread.interrupt();
             }

@@ -21,8 +21,7 @@ public class ResponseGenerator {
 
     public static SearchResponse createSearchResponse(String searchName, String jsonResponse) {
         try {
-            ObjectMapper mapper = new ObjectMapper();
-            JsonNode root = mapper.readTree(jsonResponse);
+            JsonNode root = objectMapper.readTree(jsonResponse);
             JsonNode results = root.get("results");
 
             SearchResponse.Builder responseBuilder = SearchResponse.newBuilder()

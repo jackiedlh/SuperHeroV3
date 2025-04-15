@@ -31,7 +31,7 @@ superhero:
 # gRPC Server Configuration
 grpc:
   server:
-    port: 9090
+    port: 9091
     security:
       enabled: false
     netty:
@@ -46,7 +46,7 @@ grpc:
   client:
     channel:
       host: localhost
-      port: 9090
+      port: 9091
       keep-alive:
         time: 15  # Shorter for faster detection
         timeout: 10  # Shorter timeout for clients

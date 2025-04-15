@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
 @RestController
 public class HeroController {
 
-    private final SuperheroServiceGrpc.SuperheroServiceStub asyncStub;
+    private final SuperheroGrpcClient grpcClient;
 
     /**
      * Constructor for HeroController.
@@ -31,11 +31,11 @@ public class HeroController {
      */
     @Autowired
     public HeroController(SuperheroGrpcClient superheroGrpcClient) {
-        this.asyncStub = SuperheroServiceGrpc.newStub(superheroGrpcClient.channel);
+        this.grpcClient = superheroGrpcClient;
     }
 
     public void searchHero(SearchRequest request, io.grpc.stub.StreamObserver<SearchResponse> responseObserver) {
-        asyncStub.searchHero(request, responseObserver);
+        grpcClient.searchHero(request, responseObserver);
     }
 
     /**
