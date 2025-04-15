@@ -139,7 +139,7 @@ public class CacheUpdateScheduleService {
 
     //Mock for update hero //TODO: remove it for release
     private boolean foreUpdate(Hero newHero) {
-        return Math.random() < 0.3 || Integer.parseInt(newHero.getId())<=5;
+        return Integer.parseInt(newHero.getId()) % 10 == 0;
     }
 
     private void mockGetNewAndUpdatedHeroes() {
@@ -147,8 +147,8 @@ public class CacheUpdateScheduleService {
             String htmlContent = restTemplate.getForObject(heroIdsUrl, String.class);
             Map<String, String> superheroIds = SuperheroIdParser.parseSuperheroIds(htmlContent);
 
-            //for local server performance, only get first 20 heroes, and add 2 more for next //TODO: MOCK only
-            int size = monitoredHeroes.isEmpty()? 20: Math.min(monitoredHeroes.size()+2, superheroIds.size());
+            //for local server performance, only get first 20 heroes, and add 1 more for next //TODO: MOCK only
+            int size = monitoredHeroes.isEmpty()? 20: Math.min(monitoredHeroes.size()+1, superheroIds.size());
 
             superheroIds.keySet().stream().limit(size).forEach(heroId -> {
                 if (!monitoredHeroes.contains(heroId)) {

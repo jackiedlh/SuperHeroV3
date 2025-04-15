@@ -1,4 +1,4 @@
-package com.example.superheroproxy.controller;
+package com.example.superheroproxy.client;
 
 import com.example.superheroproxy.proto.NotificationServiceGrpc;
 import com.example.superheroproxy.proto.SearchRequest;
