@@ -60,7 +60,7 @@ public class ExternalApiService {
         logger.debug("Making request to URL: {}", url);
 
         String jsonResponse = restTemplate.getForObject(url, String.class);
-        logger.debug("API Response: {}", jsonResponse);
+//        logger.debug("API Response: {}", jsonResponse);
 
         return ResponseGenerator.generateHero(jsonResponse);
     }
@@ -82,7 +82,7 @@ public class ExternalApiService {
         logger.debug("Making request to URL: {}", url);
 
         String jsonResponse = restTemplate.getForObject(url, String.class);
-        logger.debug("API Response: {}", jsonResponse);
+//        logger.debug("API Response: {}", jsonResponse);
 
         return ResponseGenerator.createSearchResponse(name, jsonResponse);
     }

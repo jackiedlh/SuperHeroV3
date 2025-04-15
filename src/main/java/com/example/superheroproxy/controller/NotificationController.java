@@ -7,6 +7,8 @@ import com.example.superheroproxy.utils.Converter;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
@@ -32,6 +34,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @RestController
 @RequestMapping("/api/notifications")
 public class NotificationController {
+    private static final Logger logger = LoggerFactory.getLogger(NotificationController.class);
     /** Map to store active SSE emitters for each subscription (hero ID or "all") */
     private final Map<String, SseEmitter> emitters = new ConcurrentHashMap<>();
     
@@ -96,10 +99,7 @@ public class NotificationController {
      */
     @PostMapping("/unsubscribe/{heroId}")
     public void unsubscribe(@PathVariable String heroId) {
-        SseEmitter emitter = emitters.remove(heroId);
-        if (emitter != null) {
-            emitter.complete();
-        }
+        cleanupSubscription(heroId);
     }
 
     /**
@@ -147,8 +147,9 @@ public class NotificationController {
                 try {
                     if (!isCompleted.get()) {
                         try {
-                            emitter.send("ping");
+                            emitter.send(subscriptionId + " ping");
                         } catch (IOException e) {
+                            logger.error(subscriptionId + " thread ping exception", e);
                             isActive.set(false);
                             break;
                         }
@@ -156,15 +157,24 @@ public class NotificationController {
                         isActive.set(false);
                         break;
                     }
+                } catch (Exception e) {
+                    logger.error(subscriptionId + " Error in ping thread", e);
+                }
+
+                try {
                     Thread.sleep(60000); // Send ping every 60 seconds
                 } catch (InterruptedException e) {
+                    logger.warn(subscriptionId + " ping thread interrupted", e);
                     Thread.currentThread().interrupt();
                     break;
                 } catch (Exception e) {
-                    System.err.println("Error in ping thread: " + e.getMessage());
+                    logger.error(subscriptionId + " Error in ping thread: " + e.getMessage());
                 }
             }
-            cleanupSubscription(subscriptionId, emitter, isActive, isCompleted);
+            // Only cleanup if the subscription is manually unsubscribed
+            if (!isActive.get()) {
+                cleanupSubscription(subscriptionId);
+            }
         });
         pingThread.setDaemon(true);
         pingThread.start();
@@ -217,6 +227,7 @@ public class NotificationController {
         asyncStub.subscribeToUpdates(request, new StreamObserver<HeroUpdate>() {
             @Override
             public void onNext(HeroUpdate update) {
+                logger.debug(subscriptionId + " subscribeToUpdates onNext");
                 if (!isActive.get() || isCompleted.get()) {
                     return;
                 }
@@ -233,21 +244,16 @@ public class NotificationController {
 
             @Override
             public void onError(Throwable t) {
+                logger.error(subscriptionId + " subscribeToUpdates error", t);
                 handleError(t);
             }
 
             @Override
             public void onCompleted() {
-                cleanupSubscription(subscriptionId, emitter, isActive, isCompleted);
+                // Don't cleanup on completion, only on manual unsubscribe
                 pingThread.interrupt();
             }
 
-            /**
-             * Handles errors from the gRPC stream or SSE emitter.
-             * Cleans up resources and completes the emitter appropriately.
-             *
-             * @param t The error that occurred
-             */
             private void handleError(Throwable t) {
                 isActive.set(false);
                 isCompleted.set(true);
@@ -263,22 +269,15 @@ public class NotificationController {
     }
 
     /**
-     * Cleans up resources when a subscription ends.
-     * Removes the emitter from the map and completes it if necessary.
+     * Cleans up resources when a subscription is manually unsubscribed.
      *
      * @param subscriptionId The ID of the subscription to clean up
-     * @param emitter The SSE emitter to complete
-     * @param isActive Flag indicating if the subscription is active
-     * @param isCompleted Flag indicating if the subscription is completed
      */
-    private void cleanupSubscription(String subscriptionId, SseEmitter emitter,
-                                   AtomicBoolean isActive, AtomicBoolean isCompleted) {
-        if (isActive.get()) {
-            isActive.set(false);
-            emitters.remove(subscriptionId);
-            if (!isCompleted.get()) {
-                emitter.complete();
-            }
+    private void cleanupSubscription(String subscriptionId) {
+        logger.info(subscriptionId + " cleanupSubscription");
+        SseEmitter emitter = emitters.remove(subscriptionId);
+        if (emitter != null) {
+            emitter.complete();
         }
     }
 } 

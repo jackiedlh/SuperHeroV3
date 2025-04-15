@@ -121,11 +121,11 @@ function handleSubscribeAll(checked) {
 
         eventSource.onmessage = function(event) {
             try {
-                if (event.data === 'ping') {
+                if (event.data.endsWith('ping')) {
                     // Handle ping message
                     const pingElement = document.createElement('div');
                     pingElement.className = 'update ping';
-                    pingElement.textContent = 'Ping received';
+                    pingElement.textContent = 'Ping received:' + event.data;
                     document.getElementById('updates').appendChild(pingElement);
                     return;
                 }
@@ -183,11 +183,11 @@ function subscribe() {
 
     eventSource.onmessage = function(event) {
         try {
-            if (event.data === 'ping') {
+            if (event.data.endsWith('ping')) {
                 // Handle ping message
                 const pingElement = document.createElement('div');
                 pingElement.className = 'update ping';
-                pingElement.textContent = 'Ping received';
+                pingElement.textContent = 'Ping Received:' + event.data;
                 document.getElementById('updates').appendChild(pingElement);
                 return;
             }

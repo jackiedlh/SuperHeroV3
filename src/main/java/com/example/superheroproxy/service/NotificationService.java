@@ -73,10 +73,10 @@ public class NotificationService extends NotificationServiceGrpc.NotificationSer
             @Override
             public void onError(Throwable t) {
                 logger.error("Client disconnected with error", t);
-                removeSubscriber(responseObserver);
-                if (!serverCallStreamObserver.isCancelled()) {
-                    responseObserver.onError(t);
-                }
+//                removeSubscriber(responseObserver);
+//                if (!serverCallStreamObserver.isCancelled()) {
+//                    responseObserver.onError(t);
+//                }
             }
 
             @Override
