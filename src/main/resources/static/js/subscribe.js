@@ -84,10 +84,10 @@ function handleSubscribeAll(checked) {
             
             if (reconnectAttempts < maxReconnectAttempts) {
                 reconnectAttempts++;
-                addUpdate(`Connection lost. Attempting to reconnect (${reconnectAttempts}/${maxReconnectAttempts})...`, true);
+                addUpdate(`Connection lost for ALL subscription. Attempting to reconnect (${reconnectAttempts}/${maxReconnectAttempts})...`, true);
                 setTimeout(handleSubscribeAll(true), 5000);
             } else {
-                addUpdate('Connection lost. Maximum reconnection attempts reached. Please try again later.', true);
+                addUpdate('Connection lost for ALL subscription. Maximum reconnection attempts reached. Please try again later.', true);
             }
         };
     } else {
@@ -173,10 +173,10 @@ function subscribe() {
 
         if (reconnectAttempts < maxReconnectAttempts) {
             reconnectAttempts++;
-            addUpdate(`Connection lost. Attempting to reconnect (${reconnectAttempts}/${maxReconnectAttempts})...`, true);
+            addUpdate(`Connection lost for ${heroId} subscription. Attempting to reconnect (${reconnectAttempts}/${maxReconnectAttempts})...`, true);
             setTimeout(subscribe, 5000); // Try to reconnect after 5 seconds
         } else {
-            addUpdate('Connection lost. Maximum reconnection attempts reached.', true);
+            addUpdate('Connection lost for ${heroId} subscription. Maximum reconnection attempts reached.', true);
         }
     };
 }
