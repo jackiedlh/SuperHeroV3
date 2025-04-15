@@ -18,7 +18,7 @@ import org.springframework.web.client.RestTemplate;
 
 import com.example.superheroproxy.proto.Hero;
 import com.example.superheroproxy.proto.UpdateType;
-import com.example.superheroproxy.utils.SuperheroIdParser;
+import com.example.superheroproxy.utils.SuperheroIdStore;
 
 /**
  * Service responsible for managing and updating the superhero data cache.
@@ -145,7 +145,7 @@ public class CacheUpdateScheduleService {
     private void mockGetNewAndUpdatedHeroes() {
         try {
             String htmlContent = restTemplate.getForObject(heroIdsUrl, String.class);
-            Map<String, String> superheroIds = SuperheroIdParser.parseSuperheroIds(htmlContent);
+            Map<String, String> superheroIds = SuperheroIdStore.getSuperheroIds(htmlContent);
 
             //for local server performance, only get first 20 heroes, and add 1 more for next //TODO: MOCK only
             int size = monitoredHeroes.isEmpty()? 20: Math.min(monitoredHeroes.size()+1, superheroIds.size());

@@ -1,101 +1,118 @@
 # SuperHero Proxy
 
-A Java Spring Boot application that provides a caching layer and real-time updates for the SuperHero API using gRPC.
+A Java Spring Boot application that provides a caching layer and mock real-time updates for the SuperHero API using gRPC and Server-Sent Events (SSE).
 
-## Main Features
+## Architecture Overview
 
-- **Efficient Caching**: Caffeine-based cache with configurable size and expiration
-- **Real-time Updates**: Server-Sent Events (SSE) with gRPC client integration for instant hero updates
-- **Case-insensitive Search**: Smart search functionality with automatic caching
-- **Scheduled Updates**: Automatic cache refresh with configurable intervals
-- **Thread-safe Operations**: Concurrent-safe implementation for high performance
-- **HTML Parsing**: Jsoup integration for parsing HTML content
-- **Comprehensive Error Handling**: Global exception handling with detailed error responses
-
-## Prerequisites
-
-- Java 17 or higher
-- Maven 3.8 or higher
-- SuperHero API token
-
-## Project Structure
+The application follows a layered architecture with clear separation of concerns:
 
 ```
-src/main/java/com/example/superheroproxy/
-├── controller/     # REST controllers and gRPC clients
-│   ├── HeroController.java        # REST endpoints for hero operations
-│   ├── CacheController.java       # REST endpoints for cache management
-│   ├── NotificationController.java # SSE endpoints for real-time updates
-│   └── SuperheroGrpcClient.java   # gRPC client implementation
-├── service/        # Business logic and service implementations
-├── client/         # External API clients
-├── utils/          # Utility classes and helpers
-├── config/         # Configuration classes
-├── dto/            # Data Transfer Objects
-└── SuperheroProxyApplication.java
+src/
+├── main/
+│   ├── java/com/example/superheroproxy/    
+│   │   ├── client/              # test client for gPRC services
+│   │   │   ├── NotificationClient.java       # Client for notification handling
+│   │   │   ├── NotificationCmdClient.java    # Command client for notifications
+│   │   │   └── SuperheroGrpcClient.java      # gRPC client implementation
+│   │   ├── config/              # Configuration Layer
+│   │   │   ├── AppConfig.java                # Application configuration
+│   │   │   ├── CacheConfig.java              # Cache configuration
+│   │   │   └── GrpcWebConfig.java            # gRPC web configuration
+│   │   ├── controller/          # Restful API Layer for demo page
+│   │   │   ├── CacheController.java          # REST endpoints for cache management
+│   │   │   ├── GlobalExceptionHandler.java   # Global error handling
+│   │   │   ├── HeroController.java           # REST endpoints for hero operations
+│   │   │   └── NotificationController.java    # REST endpont support SSE for real-time updates
+│   │   ├── dto/                 # Data Transfer Objects for demo page
+│   │   │   └── HeroDto.java                  # Hero data transfer objects
+│   │   ├── service/            # Business Logic Layer
+│   │   │   ├── CacheStatService.java         # Cache statistics and monitoring
+│   │   │   ├── CacheUpdateScheduleService.java # Cache update scheduling job service
+│   │   │   ├── ExternalApiService.java       # External API integration serive
+│   │   │   ├── NotificationService.java      # Real-time notification handling gPRC service
+│   │   │   ├── SuperheroInnerService.java    # Internal hero operations service with cache
+│   │   │   └── SuperheroProxyService.java    # Hero search gPRC service
+│   │   ├── utils/              # Utility Layer
+│   │   │   ├── Converter.java               # Data conversion utilities
+│   │   │   ├── ResponseGenerator.java       # Response formatting utilities
+│   │   │   └── SuperheroIdStore.java        # Hero IDs for demo/test
+│   │   └── SuperheroProxyApplication.java   # Application entry point
+│   ├── proto/                  # Protocol Buffers
+│   │   └── *.proto                          # gRPC service definitions
+│   └── resources/
+│       ├── static/             # Demo/Test Frontend
+│       │   ├── js/            # JavaScript Modules
+│       │   │   ├── subscribe.js   # SSE subscription handling
+│       │   │   ├── cache.js       # Cache management
+│       │   │   ├── search.js      # Search functionality
+│       │   │   └── config.js      # Frontend configuration
+│       │   └── index.html     # Main test application page
+│       └── application.yml    # Application configuration
+└── test/                      # Test files
 ```
 
-## Quick Start
+## Key Components
 
-1. Clone the repository:
-```bash
-git clone https://github.com/yourusername/superhero-proxy.git
-cd superhero-proxy
-```
+### 1. Backend Components
 
-2. Set up environment variables:
-```bash
-export SUPERHERO_API_TOKEN=your_api_token_here
-```
+#### Client Layer
+- **NotificationClient**: Handles notification subscriptions and events
+- **NotificationCmdClient**: Processes notification commands
+- **SuperheroGrpcClient**: Manages gRPC communication
 
-3. Build the project:
-```bash
-mvn clean install
-```
+### 2. Frontend Components
 
-4. Run the application:
-```bash
-mvn spring-boot:run
-```
+#### HTML Structure (index.html)
+- Responsive layout with Bootstrap
+- Real-time update panels
+- Search interface
+- Cache management controls
 
-## Real-time Updates
+#### JavaScript Modules
+- **subscribe.js**: Manages SSE subscriptions and real-time updates
+- **cache.js**: Handles cache operations and statistics
+- **search.js**: Implements search functionality
+- **config.js**: Frontend configuration settings
 
-The application provides real-time updates through Server-Sent Events (SSE) with gRPC client integration:
+## Features
 
-### Subscribe to Updates
-```bash
-# Subscribe to updates for a specific hero
-curl -N http://localhost:8080/api/notifications/subscribe/{heroId}
+### 1. Backend Features
 
-# Subscribe to updates for all heroes
-curl -N http://localhost:8080/api/notifications/subscribeAll
-```
+#### Caching System
+- **Caffeine Cache**: High-performance in-memory caching
+- **Configurable Settings**: Adjustable cache size and expiration
+- **Scheduled Updates**: Automatic cache refresh mechanism
+- **Cache Statistics**: Monitoring and metrics collection
 
-### Unsubscribe from Updates
-```bash
-curl -X POST http://localhost:8080/api/notifications/unsubscribe/{heroId}
-```
+#### Real-time Updates
+- **Server-Sent Events**: Efficient one-way communication
+- **gRPC Integration**: Reliable service-to-service communication
+- **Connection Management**: Automatic reconnection and error handling
 
-## Testing
+#### Error Handling
+- **Global Exception Handler**: Consistent error responses
+- **SSE Error Handling**: Proper error events for real-time clients
+- **HTTP Error Responses**: Standardized error formats
 
-### 1. Start the Application
-```bash
-mvn spring-boot:run
-```
+### 2. Frontend Features
+- **Real-time Updates UI**
+  - Live hero data updates
+  - SSE connection status
+  - Automatic reconnection handling
 
-### 2. Run the Tests
-```bash
-# Run all tests
-mvn test
+- **Cache Management Interface**
+  - Cache statistics visualization
+  - Manual cache operations
+  - Update scheduling controls
 
-# Run specific test class
-mvn test -Dtest=NotificationClientTest
-```
+- **Search Interface**
+  - Instant search results
+  - Advanced filtering options
+  - Result highlighting
 
 ## Configuration
 
-The application uses the following default configurations:
-
+### Application Properties
 ```yaml
 # Cache Configuration
 spring:
@@ -139,51 +156,76 @@ superhero:
 
 ## Error Handling
 
-The application provides comprehensive error handling through the GlobalExceptionHandler:
+The application provides comprehensive error handling:
 
-- **Internal Server Errors**: Handles unexpected exceptions with detailed logging
-- **Bad Requests**: Handles invalid parameters and input validation
-- **gRPC Communication Errors**: Handles gRPC service communication issues
-- **External API Errors**: Handles issues with the SuperHero API
-- **JSON Processing Errors**: Handles JSON serialization/deserialization issues
-- **Cache Retrieval Errors**: Handles cache-related exceptions
+1. **Global Exception Handler**
+   - Handles all uncaught exceptions
+   - Provides consistent error responses
+   - Supports both REST and SSE error formats
 
-## Profiles
+2. **Error Response Formats**
+   ```json
+   // REST Error Response
+   {
+     "status": 500,
+     "error": "Internal Server Error",
+     "message": "Error message"
+   }
 
-The application supports different profiles:
+   // SSE Error Event
+   {
+     "error": "Error Type",
+     "message": "Error Message"
+   }
+   ```
 
-- `dev`: Development environment
-- `test`: Testing environment
-- `prod`: Production environment
+3. **Exception Types**
+   - Internal Server Errors
+   - Bad Requests
+   - gRPC Communication Errors
+   - External API Errors
+   - JSON Processing Errors
+   - Cache Retrieval Errors
 
-To run with a specific profile:
+## Development
+
+### Prerequisites
+- Java 17 or higher
+- Maven 3.8 or higher
+- SuperHero API token
+
+### Building
 ```bash
-mvn spring-boot:run -Dspring.profiles.active=dev
+mvn clean install
 ```
 
-## Troubleshooting
+### Running
+```bash
+mvn spring-boot:run
+```
 
-1. **Cache Issues**
-   - Check cache statistics in logs
-   - Verify cache configuration
-   - Monitor memory usage
+### Testing
+```bash
+# Run all tests
+mvn test
 
-2. **gRPC Connection Issues**
-   - Verify gRPC server is running
-   - Check port configuration
-   - Review error logs
+# Run specific test class
+mvn test -Dtest=NotificationClientTest
+```
 
-3. **API Connection Issues**
-   - Verify API token
-   - Check network connectivity
-   - Review API response logs
+## Monitoring and Maintenance
 
-4. **HTML Parsing Issues**
-   - Check HTML structure compatibility
-   - Verify Jsoup selectors
-   - Review parsing logs
+### Cache Statistics
+- Cache hit/miss rates
+- Eviction statistics
+- Size monitoring
 
-5. **SSE Connection Issues**
-   - Check client connection status
-   - Verify event stream configuration
-   - Monitor connection timeouts
+### Error Monitoring
+- Detailed error logging
+- Error rate tracking
+- Exception patterns analysis
+
+### Performance Metrics
+- Response times
+- Connection statistics
+- Resource utilization

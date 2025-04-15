@@ -10,9 +10,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Slf4j
-public final class SuperheroIdParser {
+public final class SuperheroIdStore {
 
-    private SuperheroIdParser() {
+    private SuperheroIdStore() {
         // Private constructor to prevent instantiation
     }
 
@@ -21,7 +21,7 @@ public final class SuperheroIdParser {
      * @param htmlContent The HTML content containing the superhero table
      * @return A map of superhero IDs to names
      */
-    public static Map<String, String> parseSuperheroIds(String htmlContent) {
+    public static Map<String, String> getSuperheroIds(String htmlContent) {
         Map<String, String> superheroIds = new HashMap<>();
         
         try {
