@@ -93,10 +93,12 @@ public class NotificationService extends NotificationServiceGrpc.NotificationSer
         if (request.getSubscribeAll()){
             // add to all subscribers
             allSubscribers.add(wrappedObserver);
+            logger.info("add all subscribers:" + wrappedObserver.toString());
         }else if (!request.getHeroIdsList().isEmpty()) {
             for (String heroId : request.getHeroIdsList()) {
                 heroSubscribers.computeIfAbsent(heroId, k -> new CopyOnWriteArrayList<>())
                         .add(wrappedObserver);
+                logger.info("add {} subscribers: {}", heroId, wrappedObserver.toString());
             }
         }
     }
