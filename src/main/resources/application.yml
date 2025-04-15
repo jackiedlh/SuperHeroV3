@@ -43,12 +43,14 @@ grpc:
       max-connection-age-grace: 5
       permit-keep-alive-time: 5
       permit-keep-alive-without-calls: true
+  client:
     channel:
       host: localhost
+      port: 9090
       keep-alive:
-        time: ${grpc.server.netty.keep-alive-time}
-        timeout: ${grpc.server.netty.keep-alive-timeout}
-        without-calls: ${grpc.server.netty.keep-alive-without-calls}
+        time: 15  # Shorter for faster detection
+        timeout: 10  # Shorter timeout for clients
+        without-calls: false  # Don't keep idle connections
 
 # Logging Configuration (common for all profiles)
 logging:

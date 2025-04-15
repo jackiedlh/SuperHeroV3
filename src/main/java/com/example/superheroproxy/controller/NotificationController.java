@@ -4,10 +4,8 @@ import com.example.superheroproxy.proto.HeroUpdate;
 import com.example.superheroproxy.proto.NotificationServiceGrpc;
 import com.example.superheroproxy.proto.SubscribeRequest;
 import com.example.superheroproxy.utils.Converter;
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -15,7 +13,6 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -36,34 +33,11 @@ public class NotificationController {
     private final Map<String, SseEmitter> emitters = new ConcurrentHashMap<>();
     
     /** gRPC channel for communication with the notification service */
-    private final ManagedChannel channel;
-    
-    /** Asynchronous gRPC stub for making non-blocking calls */
     private final NotificationServiceGrpc.NotificationServiceStub asyncStub;
 
-    /**
-     * Constructs the NotificationController and initializes the gRPC connection.
-     * Sets up a managed channel with keep-alive settings to maintain the connection.
-     *
-     * @param grpcPort The port number for the gRPC server
-     * @param host The host for the gRPC server
-     * @param keepAliveTime The keep-alive time for the gRPC connection
-     * @param keepAliveTimeout The keep-alive timeout for the gRPC connection
-     * @param keepAliveWithoutCalls Flag indicating if the gRPC connection should be kept alive without calls
-     */
-    public NotificationController(
-            @Value("${grpc.server.port}") int grpcPort,
-            @Value("${grpc.server.channel.host}") String host,
-            @Value("${grpc.server.channel.keep-alive.time}") int keepAliveTime,
-            @Value("${grpc.server.channel.keep-alive.timeout}") int keepAliveTimeout,
-            @Value("${grpc.server.channel.keep-alive.without-calls}") boolean keepAliveWithoutCalls) {
-        this.channel = ManagedChannelBuilder.forAddress(host, grpcPort)
-                .usePlaintext()
-                .keepAliveTime(keepAliveTime, TimeUnit.SECONDS)
-                .keepAliveTimeout(keepAliveTimeout, TimeUnit.SECONDS)
-                .keepAliveWithoutCalls(keepAliveWithoutCalls)
-                .build();
-        this.asyncStub = NotificationServiceGrpc.newStub(channel);
+    @Autowired
+    public NotificationController(SuperheroGrpcClient superheroGrpcClient) {
+        this.asyncStub = NotificationServiceGrpc.newStub(superheroGrpcClient.channel);
     }
 
     /**
