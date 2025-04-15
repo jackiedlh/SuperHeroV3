@@ -408,7 +408,7 @@ async function searchHero() {
     searchResultsBody.innerHTML = '<tr><td colspan="2">Searching...</td></tr>';
 
     try {
-        const response = await fetch(`${baseUrl}/api/search?name=${encodeURIComponent(searchTerm)}`);
+        const response = await fetch(`${baseUrl}/api/hero/search?name=${encodeURIComponent(searchTerm)}`);
         if (!response.ok) {
             throw new Error('Search failed');
         }

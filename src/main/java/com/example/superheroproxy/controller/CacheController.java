@@ -11,8 +11,11 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @RestController
+@RequestMapping("/api/cache")
 public class CacheController {
 
     private final CacheManager cacheManager;
@@ -27,13 +30,37 @@ public class CacheController {
         this.cacheManager = cacheManager;
     }
 
+
+    /**
+     * Retrieves all keys currently stored in the superhero cache.
+     *
+     * @return ResponseEntity containing a set of cache keys or 404 if cache is not found
+     */
+    @GetMapping("/keys")
+    public ResponseEntity<Set<String>> getCacheKeys() {
+        Cache cache = cacheManager.getCache(CacheConfig.SUPERHERO_CACHE);
+        if (cache == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        // Get the native cache to access keys
+        com.github.benmanes.caffeine.cache.Cache<Object, Object> nativeCache =
+            (com.github.benmanes.caffeine.cache.Cache<Object, Object>) cache.getNativeCache();
+
+        Set<String> keys = nativeCache.asMap().keySet().stream()
+            .map(Object::toString)
+            .collect(Collectors.toSet());
+
+        return ResponseEntity.ok(keys);
+    }
+
     /**
      * Retrieves a specific hero from the cache by ID.
      *
      * @param heroId The ID of the hero to retrieve
      * @return ResponseEntity containing the hero data or 404 if not found
      */
-    @GetMapping("/api/cache/{heroId}")
+    @GetMapping("/{heroId}")
     public ResponseEntity<HeroDto> getHeroFromCache(@PathVariable String heroId) {
         Cache cache = cacheManager.getCache(CacheConfig.SUPERHERO_CACHE);
         if (cache == null) {
@@ -56,7 +83,7 @@ public class CacheController {
      * @param request Map containing the new name under the "name" key
      * @return ResponseEntity containing the updated hero data or 404 if not found
      */
-    @PostMapping("/api/cache/{heroId}/name")
+    @PostMapping("/{heroId}/name")
     public ResponseEntity<HeroDto> updateHeroNameInCache(@PathVariable String heroId, @RequestBody Map<String, String> request) {
         Cache cache = cacheManager.getCache("superheroCache");
         if (cache == null) {
@@ -82,7 +109,7 @@ public class CacheController {
      *
      * @return ResponseEntity containing cache statistics or 404 if cache is not found
      */
-    @GetMapping("/api/cache/stats")
+    @GetMapping("/stats")
     public ResponseEntity<Map<String, Object>> getCacheStats() {
         Cache cache = cacheManager.getCache("superheroCache");
         if (cache == null) {
