@@ -112,7 +112,7 @@ function handleSubscribeAll(checked) {
         }
 
         // Create new EventSource for all heroes
-        eventSource = new EventSource(`${baseUrl}/api/notifications/subscribe`);
+        eventSource = new EventSource(`${baseUrl}/api/notifications/subscribeAll`);
         updateStatus(true);
         reconnectAttempts = 0;
         subscribedHeroes.clear();

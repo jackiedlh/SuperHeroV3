@@ -74,7 +74,7 @@ public class NotificationController {
      */
     @GetMapping(value = "/subscribe/{heroId}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter subscribe(@PathVariable String heroId) {
-        return createSubscription(heroId, SubscribeRequest.newBuilder().addHeroIds(heroId).build());
+        return createSubscription(heroId, SubscribeRequest.newBuilder().setSubscribeAll(false).addHeroIds(heroId).build());
     }
 
     /**
@@ -83,9 +83,9 @@ public class NotificationController {
      *
      * @return An SseEmitter that the client can use to receive updates for all heroes
      */
-    @GetMapping(value = "/subscribe", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @GetMapping(value = "/subscribeAll", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter subscribeAll() {
-        return createSubscription("all", SubscribeRequest.newBuilder().build());
+        return createSubscription("all", SubscribeRequest.newBuilder().setSubscribeAll(true).build());
     }
 
     /**

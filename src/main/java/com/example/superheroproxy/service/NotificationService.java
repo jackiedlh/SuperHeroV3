@@ -49,7 +49,7 @@ public class NotificationService extends NotificationServiceGrpc.NotificationSer
      */
     @Override
     public void subscribeToUpdates(SubscribeRequest request, StreamObserver<HeroUpdate> responseObserver) {
-        logger.info("New subscription request received");
+        logger.info("New subscription request received:" + request.toString());
         
         // Cast to ServerCallStreamObserver to handle cancellation
         ServerCallStreamObserver<HeroUpdate> serverCallStreamObserver = 
@@ -72,7 +72,7 @@ public class NotificationService extends NotificationServiceGrpc.NotificationSer
 
             @Override
             public void onError(Throwable t) {
-                logger.info("Client disconnected with error", t);
+                logger.error("Client disconnected with error", t);
                 removeSubscriber(responseObserver);
                 if (!serverCallStreamObserver.isCancelled()) {
                     responseObserver.onError(t);
@@ -90,14 +90,14 @@ public class NotificationService extends NotificationServiceGrpc.NotificationSer
         };
         
         // If specific heroes are requested, add to their subscriber lists
-        if (!request.getHeroIdsList().isEmpty()) {
+        if (request.getSubscribeAll()){
+            // add to all subscribers
+            allSubscribers.add(wrappedObserver);
+        }else if (!request.getHeroIdsList().isEmpty()) {
             for (String heroId : request.getHeroIdsList()) {
                 heroSubscribers.computeIfAbsent(heroId, k -> new CopyOnWriteArrayList<>())
                         .add(wrappedObserver);
             }
-        } else {
-            // If no specific heroes requested, add to all subscribers
-            allSubscribers.add(wrappedObserver);
         }
     }
 

@@ -22,6 +22,7 @@ enum UpdateType {
 
 message SubscribeRequest {
     repeated string hero_ids = 1;
+    bool subscribe_all = 2;
 }
 
 service NotificationService {
