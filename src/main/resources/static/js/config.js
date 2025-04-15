@@ -4,4 +4,7 @@ const config = {
 };
 
 // Export the configuration
-window.appConfig = config; 
+window.appConfig = config;
+
+// Shared configuration variables
+const baseUrl = window.appConfig.baseUrl; // Base URL for API endpoints 

@@ -3,7 +3,7 @@ let allEventSource = null; // EventSource for subscribing to all heroes
 let heroEventSources = new Map(); // Map to store event sources for individual heroes
 let reconnectAttempts = 0; // Counter for reconnection attempts
 const maxReconnectAttempts = 5; // Maximum number of reconnection attempts
-const baseUrl = window.appConfig.baseUrl; // Base URL for API endpoints
+// baseUrl is defined in config.js
 let subscribedHeroes = new Set(); // Set to track subscribed hero IDs
 
 // Updates the connection status indicator in the UI
@@ -27,8 +27,6 @@ function updateSubscriptionList() {
         subscriptionList.appendChild(item);
     });
 }
-
-
 
 // Handles subscription to all heroes
 function handleSubscribeAll(checked) {
@@ -112,6 +110,9 @@ function handleSubscribeAll(checked) {
 function subscribe() {
     const heroId = document.getElementById('heroId').value;
     
+    // Uncheck the subscribeAll checkbox
+    document.getElementById('subscribeAll').checked = false;
+    
     // Clear previous updates
     document.getElementById('updates').innerHTML = '';
     
@@ -128,7 +129,7 @@ function subscribe() {
     }
 
     // Create new EventSource for this hero
-    const eventSource = new EventSource(`${baseUrl}/api/notifications/subscribe/${heroId}`);
+    eventSource = new EventSource(`${baseUrl}/api/notifications/subscribe/${heroId}`);
     heroEventSources.set(heroId, eventSource);
     updateStatus(true);
     reconnectAttempts = 0;

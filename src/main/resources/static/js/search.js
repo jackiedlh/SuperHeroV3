@@ -1,4 +1,5 @@
-const baseUrl = window.appConfig.baseUrl; 
+// Search-related functionality
+// baseUrl is defined in config.js
 
 // Searches for heroes by name
 async function searchHero() {

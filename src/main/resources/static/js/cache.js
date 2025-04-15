@@ -2,6 +2,7 @@
 
 // Updates the cache statistics display
 function updateCacheStats() {
+    // baseUrl is defined in config.js
     fetch(`${baseUrl}/api/cache/stats`)
         .then(response => {
             if (!response.ok) {
