@@ -73,10 +73,10 @@ public class NotificationService extends NotificationServiceGrpc.NotificationSer
             @Override
             public void onError(Throwable t) {
                 logger.error("Client disconnected with error", t);
-//                removeSubscriber(responseObserver);
-//                if (!serverCallStreamObserver.isCancelled()) {
-//                    responseObserver.onError(t);
-//                }
+                removeSubscriber(responseObserver);
+                if (!serverCallStreamObserver.isCancelled()) {
+                    responseObserver.onError(t);
+                }
             }
 
             @Override
@@ -101,6 +101,9 @@ public class NotificationService extends NotificationServiceGrpc.NotificationSer
                 logger.info("add {} subscribers: {}", heroId, wrappedObserver.toString());
             }
         }
+
+        logger.debug("allSubscribers size:" + allSubscribers.size());
+        logger.debug("heroSubscribers keys:" + heroSubscribers.keySet().toString());
     }
 
     /**
@@ -127,6 +130,8 @@ public class NotificationService extends NotificationServiceGrpc.NotificationSer
                     if (subscriber instanceof ServerCallStreamObserver) {
                         if (!((ServerCallStreamObserver<HeroUpdate>) subscriber).isCancelled()) {
                             subscriber.onNext(update);
+                        }else{
+                            logger.warn("one of specificSubscribers for {} cancelled", heroId);
                         }
                     } else {
                         subscriber.onNext(update);
@@ -144,6 +149,8 @@ public class NotificationService extends NotificationServiceGrpc.NotificationSer
                 if (subscriber instanceof ServerCallStreamObserver) {
                     if (!((ServerCallStreamObserver<HeroUpdate>) subscriber).isCancelled()) {
                         subscriber.onNext(update);
+                    }else{
+                        logger.warn("one of allSubscribers cancelled");
                     }
                 } else {
                     subscriber.onNext(update);

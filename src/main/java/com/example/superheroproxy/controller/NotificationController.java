@@ -143,22 +143,48 @@ public class NotificationController {
     private Thread startPingThread(SseEmitter emitter, String subscriptionId, 
                                  AtomicBoolean isActive, AtomicBoolean isCompleted) {
         Thread pingThread = new Thread(() -> {
+            final int MAX_RETRIES = 3;
+            final int RETRY_DELAY_MS = 5000; // 5 seconds between retries
+            
             while (isActive.get() && !Thread.currentThread().isInterrupted()) {
-                try {
-                    if (!isCompleted.get()) {
-                        try {
-                            emitter.send(subscriptionId + " ping");
-                        } catch (IOException e) {
-                            logger.error(subscriptionId + " thread ping exception", e);
+                int retryCount = 0;
+                boolean pingSuccessful = false;
+                
+                while (retryCount < MAX_RETRIES && !pingSuccessful) {
+                    try {
+                        if (!isCompleted.get()) {
+                            try {
+                                emitter.send(subscriptionId + " ping");
+                                pingSuccessful = true;
+                                logger.debug(subscriptionId + " ping successful");
+                            } catch (IOException e) {
+                                retryCount++;
+                                if (retryCount < MAX_RETRIES) {
+                                    logger.warn(subscriptionId + " ping attempt " + retryCount + " failed, retrying in " + RETRY_DELAY_MS + "ms", e);
+                                    Thread.sleep(RETRY_DELAY_MS);
+                                } else {
+                                    logger.error(subscriptionId + " ping failed after " + MAX_RETRIES + " attempts", e);
+                                    isActive.set(false);
+                                    break;
+                                }
+                            }
+                        } else {
                             isActive.set(false);
                             break;
                         }
-                    } else {
+                    } catch (InterruptedException e) {
+                        logger.warn(subscriptionId + " ping thread interrupted during retry", e);
+                        Thread.currentThread().interrupt();
+                        break;
+                    } catch (Exception e) {
+                        logger.error(subscriptionId + " Unexpected error in ping thread", e);
                         isActive.set(false);
                         break;
                     }
-                } catch (Exception e) {
-                    logger.error(subscriptionId + " Error in ping thread", e);
+                }
+
+                if (!pingSuccessful) {
+                    break;
                 }
 
                 try {
@@ -173,6 +199,7 @@ public class NotificationController {
             }
             // Only cleanup if the subscription is manually unsubscribed
             if (!isActive.get()) {
+                logger.warn(subscriptionId + " is NOT active");
                 cleanupSubscription(subscriptionId);
             }
         });
