@@ -30,18 +30,15 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/hero")
 public class HeroController {
 
-    private final CacheManager cacheManager;
     private final SuperheroProxyService superheroProxyService;
 
     /**
      * Constructor for HeroController.
      * 
-     * @param cacheManager The cache manager for handling superhero cache operations
      * @param superheroProxyService The service for superhero-related operations
      */
     @Autowired
-    public HeroController(CacheManager cacheManager, SuperheroProxyService superheroProxyService) {
-        this.cacheManager = cacheManager;
+    public HeroController( SuperheroProxyService superheroProxyService) {
         this.superheroProxyService = superheroProxyService;
     }
 

@@ -50,7 +50,7 @@ grpc:
       keep-alive:
         time: 15  # Shorter for faster detection
         timeout: 10  # Shorter timeout for clients
-        without-calls: false  # Don't keep idle connections
+        without-calls: true  # Don't keep idle connections
 
 # Logging Configuration (common for all profiles)
 logging:
