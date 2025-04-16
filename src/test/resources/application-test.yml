@@ -6,7 +6,7 @@ spring:
   cache:
     type: caffeine
     caffeine:
-      spec: maximumSize=1000,expireAfterWrite=1h
+      spec: maximumSize=1000,expireAfterWrite=3000s
 
 # gRPC Server Configuration
 grpc:
@@ -17,3 +17,11 @@ grpc:
 superhero:
   api:
     token: 1b3bc65ad40627f75f8edcdfbc67831d
+  cache:
+    update:
+      interval: 300  # Cache update interval in seconds
+
+# Rate Limiting Configuration
+rate:
+  limit:
+    permits-per-second: 10

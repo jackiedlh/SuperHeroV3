@@ -9,6 +9,11 @@ spring:
   application:
     name: superhero-proxy
 
+# Rate Limiting Configuration
+rate:
+  limit:
+    permits-per-second: 10  # Number of requests allowed per second
+
 # Restful Server Configuration
 server:
   port: 8080  # HTTP port

@@ -10,7 +10,9 @@ import com.example.superheroproxy.proto.Hero;
 import com.example.superheroproxy.proto.SearchRequest;
 import com.example.superheroproxy.proto.SearchResponse;
 import com.example.superheroproxy.proto.SuperheroServiceGrpc;
+import com.google.common.util.concurrent.RateLimiter;
 
+import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import net.devh.boot.grpc.server.service.GrpcService;
 
@@ -32,21 +34,24 @@ public class SuperheroProxyService extends SuperheroServiceGrpc.SuperheroService
     private static final Logger logger = LoggerFactory.getLogger(SuperheroProxyService.class);
 
     private final SuperheroInnerService superheroInnerService;
+    private final RateLimiter rateLimiter;
 
     /**
-     * Constructs a new SuperheroProxyService with the specified inner service.
+     * Constructs a new SuperheroProxyService with the specified inner service and rate limiter.
      * 
      * @param superheroInnerService The service that handles the actual superhero data operations
+     * @param rateLimiter The rate limiter for controlling the rate of requests
      */
     @Autowired
-    public SuperheroProxyService(SuperheroInnerService superheroInnerService) {
+    public SuperheroProxyService(SuperheroInnerService superheroInnerService, RateLimiter rateLimiter) {
         this.superheroInnerService = superheroInnerService;
+        this.rateLimiter = rateLimiter;
     }
 
     /**
      * Handles search requests for heroes by name.
      * This method:
-     * 1. Processes the search request
+     * 1. Checks if we can acquire a permit within a reasonable time
      * 2. Retrieves matching hero IDs
      * 3. Fetches detailed hero information for each ID
      * 4. Streams the results back to the client
@@ -57,6 +62,15 @@ public class SuperheroProxyService extends SuperheroServiceGrpc.SuperheroService
     @Override
     public void searchHero(SearchRequest request, StreamObserver<SearchResponse> responseObserver) {
         try {
+            // Check if we can acquire a permit within a reasonable time
+            if (!rateLimiter.tryAcquire()) {
+                logger.warn("Rate limit exceeded for request: {}", request.getName());
+                responseObserver.onError(Status.RESOURCE_EXHAUSTED
+                    .withDescription("Rate limit exceeded. Please try again later.")
+                    .asRuntimeException());
+                return;
+            }
+
             SearchResponse.Builder responseBuilder = SearchResponse.newBuilder()
                     .setResponse("success")
                     .setResultsFor(request.getName());

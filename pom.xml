@@ -100,6 +100,13 @@
             <artifactId>spring-boot-starter-cache</artifactId>
         </dependency>
 
+        <!-- Guava -->
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>33.0.0-jre</version>
+        </dependency>
+
         <!-- Caffeine Cache -->
         <!-- https://github.com/ben-manes/caffeine -->
         <!-- Caffeine is a high-performance caching library for Java. It provides an in-memory cache with advanced features such as automatic loading of cache entries, cache expiration, and statistics. -->
