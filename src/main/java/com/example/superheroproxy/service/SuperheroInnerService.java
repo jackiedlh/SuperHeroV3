@@ -4,8 +4,11 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
+import java.nio.charset.StandardCharsets;
 
 import com.example.superheroproxy.config.CacheConfig;
+import com.google.common.hash.BloomFilter;
+import com.google.common.hash.Funnels;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.Cacheable;
@@ -39,6 +42,9 @@ public class SuperheroInnerService {
     private final ConcurrentHashMap<String, ReentrantLock> heroLocks;
     private final ConcurrentHashMap<String, Set<String>> searchCache;
     private final ConcurrentHashMap<String, Hero> heroCache;
+    
+    // Bloom filter to track non-existent hero names
+    private final BloomFilter<String> nonExistentHeroFilter;
 
     /**
      * Constructs a new SuperheroInnerService with the required dependencies.
@@ -60,6 +66,13 @@ public class SuperheroInnerService {
         this.heroLocks = new ConcurrentHashMap<>();
         this.searchCache = new ConcurrentHashMap<>();
         this.heroCache = new ConcurrentHashMap<>();
+        
+        // Initialize bloom filter with expected 1000 items and 1% false positive rate
+        this.nonExistentHeroFilter = BloomFilter.create(
+            Funnels.stringFunnel(StandardCharsets.UTF_8),
+            1000,
+            0.01
+        );
     }
 
     /**
@@ -73,6 +86,12 @@ public class SuperheroInnerService {
     @Cacheable(value = CacheConfig.HERO_SEARCH_CACHE, key = "#name.toLowerCase()")
     public Set<String> searchHeroIds(String name) {
         String normalizedName = name.toLowerCase();
+        
+        // Check bloom filter first - if it says the name doesn't exist, return empty set
+        if (nonExistentHeroFilter.mightContain(normalizedName)) {
+            logger.debug("Bloom filter indicates hero name {} may not exist", normalizedName);
+            return Set.of();
+        }
         
         // Check local cache first
         Set<String> cachedResult = searchCache.get(normalizedName);
@@ -98,6 +117,13 @@ public class SuperheroInnerService {
                 
                 // Update local cache
                 searchCache.put(normalizedName, result);
+                
+                // If no results found, add to bloom filter
+                if (result.isEmpty()) {
+                    nonExistentHeroFilter.put(normalizedName);
+                    logger.debug("Added non-existent hero name {} to bloom filter", normalizedName);
+                }
+                
                 return result;
             } catch (Exception e) {
                 logger.error("Error searching for hero: {}", name, e);

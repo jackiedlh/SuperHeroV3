@@ -259,6 +259,76 @@ class SuperheroInnerServiceTest {
     }
 
     @Test
+    void testSearchHeroIds_BloomFilter_NonExistent() throws Exception {
+        // Mock empty results response for a non-existent hero
+        String emptyResponse = "{\"response\":\"success\",\"results-for\":\"nonexistent123\",\"results\":[]}";
+        when(externalAPIService.searchHero(anyString())).thenReturn(
+            ResponseGenerator.createSearchResponse("nonexistent123", emptyResponse)
+        );
+
+        // First request - should call API and add to bloom filter
+        Set<String> ids1 = superheroInnerService.searchHeroIds("nonexistent123");
+        verify(externalAPIService).searchHero("nonexistent123");
+        assertTrue(ids1.isEmpty());
+
+        // Second request - should be caught by bloom filter without API call
+        Set<String> ids2 = superheroInnerService.searchHeroIds("nonexistent123");
+        verify(externalAPIService).searchHero("nonexistent123"); // Still only called once
+        assertTrue(ids2.isEmpty());
+
+        // Verify bloom filter is working by checking a similar non-existent name
+        Set<String> ids3 = superheroInnerService.searchHeroIds("nonexistent123");
+        verify(externalAPIService).searchHero("nonexistent123"); // Still only called once
+        assertTrue(ids3.isEmpty());
+    }
+
+    @Test
+    void testSearchHeroIds_BloomFilter_Existent() throws Exception {
+        // Mock response for an existing hero
+        when(externalAPIService.searchHero(anyString())).thenReturn(
+            ResponseGenerator.createSearchResponse("spider-man", MOCK_RESPONSE)
+        );
+
+        // First request - should call API and not add to bloom filter
+        Set<String> ids1 = superheroInnerService.searchHeroIds("spider-man");
+        verify(externalAPIService).searchHero("spider-man");
+        assertFalse(ids1.isEmpty());
+        assertEquals(1, ids1.size());
+        assertTrue(ids1.contains("620"));
+
+        // Second request - should use cache, not bloom filter
+        Set<String> ids2 = superheroInnerService.searchHeroIds("spider-man");
+        verify(externalAPIService).searchHero("spider-man"); // Still only called once
+        assertFalse(ids2.isEmpty());
+        assertEquals(ids1, ids2);
+    }
+
+    @Test
+    void testSearchHeroIds_BloomFilter_FalsePositive() throws Exception {
+        // Mock response for an existing hero
+        when(externalAPIService.searchHero(anyString())).thenReturn(
+            ResponseGenerator.createSearchResponse("spider-man", MOCK_RESPONSE)
+        );
+
+        // First request - should call API and not add to bloom filter
+        Set<String> ids1 = superheroInnerService.searchHeroIds("spider-man");
+        verify(externalAPIService).searchHero("spider-man");
+        assertFalse(ids1.isEmpty());
+
+        // Second request - should use cache, not bloom filter
+        Set<String> ids2 = superheroInnerService.searchHeroIds("spider-man");
+        verify(externalAPIService).searchHero("spider-man"); // Still only called once
+        assertFalse(ids2.isEmpty());
+        assertEquals(ids1, ids2);
+
+        // Verify bloom filter doesn't affect existing heroes
+        Set<String> ids3 = superheroInnerService.searchHeroIds("spider-man");
+        verify(externalAPIService).searchHero("spider-man"); // Still only called once
+        assertFalse(ids3.isEmpty());
+        assertEquals(ids1, ids3);
+    }
+
+    @Test
     void testGetHero_EmptyResultCaching() throws Exception {
         // Mock empty hero response
         when(externalAPIService.getHero(anyString())).thenReturn(null);
