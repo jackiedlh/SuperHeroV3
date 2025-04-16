@@ -1,6 +1,8 @@
 package com.example.superheroproxy.service;
 
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
 import com.example.superheroproxy.config.CacheConfig;
@@ -33,6 +35,10 @@ public class SuperheroInnerService {
     private final CacheUpdateScheduleService cacheUpdateScheduleService;
     private final NotificationService notificationService;
     private final ExternalApiService externalAPIService;
+    private final ConcurrentHashMap<String, ReentrantLock> searchLocks;
+    private final ConcurrentHashMap<String, ReentrantLock> heroLocks;
+    private final ConcurrentHashMap<String, Set<String>> searchCache;
+    private final ConcurrentHashMap<String, Hero> heroCache;
 
     /**
      * Constructs a new SuperheroInnerService with the required dependencies.
@@ -50,6 +56,10 @@ public class SuperheroInnerService {
         this.cacheUpdateScheduleService = cacheUpdateScheduleService;
         this.notificationService = notificationService;
         this.externalAPIService = externalAPIService;
+        this.searchLocks = new ConcurrentHashMap<>();
+        this.heroLocks = new ConcurrentHashMap<>();
+        this.searchCache = new ConcurrentHashMap<>();
+        this.heroCache = new ConcurrentHashMap<>();
     }
 
     /**
@@ -62,14 +72,44 @@ public class SuperheroInnerService {
      */
     @Cacheable(value = CacheConfig.HERO_SEARCH_CACHE, key = "#name.toLowerCase()")
     public Set<String> searchHeroIds(String name) {
+        String normalizedName = name.toLowerCase();
+        
+        // Check local cache first
+        Set<String> cachedResult = searchCache.get(normalizedName);
+        if (cachedResult != null) {
+            return cachedResult;
+        }
+
+        ReentrantLock lock = searchLocks.computeIfAbsent(normalizedName, k -> new ReentrantLock());
+        
         try {
-            SearchResponse searchResponse = externalAPIService.searchHero(name);
-            return searchResponse.getResultsList().stream()
-                    .map(e -> e.getId())
-                    .collect(Collectors.toSet());
-        } catch (Exception e) {
-            logger.error("Error searching for hero: {}", name, e);
-            return null; // Will be cached as null
+            lock.lock();
+            try {
+                // Double-check cache after acquiring lock
+                cachedResult = searchCache.get(normalizedName);
+                if (cachedResult != null) {
+                    return cachedResult;
+                }
+
+                SearchResponse searchResponse = externalAPIService.searchHero(name);
+                Set<String> result = searchResponse.getResultsList().stream()
+                        .map(e -> e.getId())
+                        .collect(Collectors.toSet());
+                
+                // Update local cache
+                searchCache.put(normalizedName, result);
+                return result;
+            } catch (Exception e) {
+                logger.error("Error searching for hero: {}", name, e);
+                return null; // Will be cached as null
+            }
+        } finally {
+            lock.unlock();
+            // Only remove the lock and cache if no one is waiting for it
+            if (!lock.hasQueuedThreads()) {
+                searchLocks.remove(normalizedName);
+                searchCache.remove(normalizedName);
+            }
         }
     }
 
@@ -84,20 +124,46 @@ public class SuperheroInnerService {
      */
     @Cacheable(value = CacheConfig.SUPERHERO_CACHE, key = "#id")
     public Hero getHero(String id) {
+        // Check local cache first
+        Hero cachedHero = heroCache.get(id);
+        if (cachedHero != null) {
+            return cachedHero;
+        }
+
+        ReentrantLock lock = heroLocks.computeIfAbsent(id, k -> new ReentrantLock());
+        
         try {
-            // Register the hero for monitoring
-            cacheUpdateScheduleService.addHeroToMonitor(id);
-            Hero hero = externalAPIService.getHero(id);
+            lock.lock();
+            try {
+                // Double-check cache after acquiring lock
+                cachedHero = heroCache.get(id);
+                if (cachedHero != null) {
+                    return cachedHero;
+                }
 
-            if (hero != null) {
-                // Notify subscribers about the initial data
-                notificationService.notifyHeroUpdate(id, hero, UpdateType.NEW);
+                // Register the hero for monitoring
+                cacheUpdateScheduleService.addHeroToMonitor(id);
+                Hero hero = externalAPIService.getHero(id);
+
+                if (hero != null) {
+                    // Update local cache
+                    heroCache.put(id, hero);
+                    // Notify subscribers about the initial data
+                    notificationService.notifyHeroUpdate(id, hero, UpdateType.NEW);
+                }
+
+                return hero;
+            } catch (Exception e) {
+                logger.error("Error searching for hero: {}", id, e);
+                return null; // Will be cached as null
             }
-
-            return hero;
-        } catch (Exception e) {
-            logger.error("Error searching for hero: {}", id, e);
-            return null; // Will be cached as null
+        } finally {
+            lock.unlock();
+            // Only remove the lock and cache if no one is waiting for it
+            if (!lock.hasQueuedThreads()) {
+                heroLocks.remove(id);
+                heroCache.remove(id);
+            }
         }
     }
 } 
