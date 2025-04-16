@@ -8,26 +8,6 @@ spring:
       spec: maximumSize=1000,expireAfterWrite=3000s
   application:
     name: superhero-proxy
-  cloud:
-    circuitbreaker:
-      resilience4j:
-        instances:
-          getHero:
-            failure-rate-threshold: 50
-            minimum-number-of-calls: 10
-            automatic-transition-from-open-to-half-open-enabled: true
-            wait-duration-in-open-state: 5000
-            permitted-number-of-calls-in-half-open-state: 3
-            sliding-window-size: 10
-            sliding-window-type: COUNT_BASED
-          searchHero:
-            failure-rate-threshold: 50
-            minimum-number-of-calls: 10
-            automatic-transition-from-open-to-half-open-enabled: true
-            wait-duration-in-open-state: 5000
-            permitted-number-of-calls-in-half-open-state: 3
-            sliding-window-size: 10
-            sliding-window-type: COUNT_BASED
 
 # Rate Limiting Configuration
 rate:

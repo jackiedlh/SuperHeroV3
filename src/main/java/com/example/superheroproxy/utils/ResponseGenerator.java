@@ -52,43 +52,26 @@ public class ResponseGenerator {
                 .setId(heroNode.get("id").asText())
                 .setName(heroNode.get("name").asText());
 
-        // Set power stats if available
+        // Set power stats
         JsonNode powerStatsNode = heroNode.get("powerstats");
-        if (powerStatsNode != null) {
-            PowerStats.Builder powerStatsBuilder = PowerStats.newBuilder();
-            if (powerStatsNode.has("intelligence")) {
-                powerStatsBuilder.setIntelligence(powerStatsNode.get("intelligence").asText());
-            }
-            if (powerStatsNode.has("strength")) {
-                powerStatsBuilder.setStrength(powerStatsNode.get("strength").asText());
-            }
-            if (powerStatsNode.has("speed")) {
-                powerStatsBuilder.setSpeed(powerStatsNode.get("speed").asText());
-            }
-            heroBuilder.setPowerstats(powerStatsBuilder);
-        }
+        PowerStats.Builder powerStatsBuilder = PowerStats.newBuilder()
+                .setIntelligence(powerStatsNode.get("intelligence").asText())
+                .setStrength(powerStatsNode.get("strength").asText())
+                .setSpeed(powerStatsNode.get("speed").asText());
+        heroBuilder.setPowerstats(powerStatsBuilder);
 
-        // Set biography if available
+        // Set biography
         JsonNode biographyNode = heroNode.get("biography");
-        if (biographyNode != null) {
-            Biography.Builder biographyBuilder = Biography.newBuilder();
-            if (biographyNode.has("full-name")) {
-                biographyBuilder.setFullName(biographyNode.get("full-name").asText());
-            }
-            if (biographyNode.has("publisher")) {
-                biographyBuilder.setPublisher(biographyNode.get("publisher").asText());
-            }
-            heroBuilder.setBiography(biographyBuilder);
-        }
+        Biography.Builder biographyBuilder = Biography.newBuilder()
+                .setFullName(biographyNode.get("full-name").asText())
+                .setPublisher(biographyNode.get("publisher").asText());
+        heroBuilder.setBiography(biographyBuilder);
 
-        // Set image if available
+        // Set image
         JsonNode imageNode = heroNode.get("image");
-        if (imageNode != null && imageNode.has("url")) {
-            Image.Builder imageBuilder = Image.newBuilder()
-                    .setUrl(imageNode.get("url").asText());
-            heroBuilder.setImage(imageBuilder);
-        }
-
+        Image.Builder imageBuilder = Image.newBuilder()
+                .setUrl(imageNode.get("url").asText());
+        heroBuilder.setImage(imageBuilder);
         return heroBuilder.build();
     }
 }
