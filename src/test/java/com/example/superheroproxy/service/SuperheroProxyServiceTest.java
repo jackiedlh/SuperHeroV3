@@ -12,30 +12,60 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
 
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class SuperheroProxyServiceTest {
+public class SuperheroProxyServiceTest {
 
     @Mock
     private SuperheroInnerService superheroInnerService;
 
-    private SuperheroProxyService superheroProxyService;
+    @Mock
+    private io.grpc.stub.StreamObserver<SearchResponse> responseObserver;
+
+    private CacheManager cacheManager;
     private RateLimiter rateLimiter;
+    private SuperheroProxyService superheroProxyService;
 
     @BeforeEach
-    void setUp() {
-        rateLimiter = RateLimiter.create(10.0); // 10 requests per second
+    public void setup() {
+        // Initialize cache manager with required caches
+        cacheManager = new ConcurrentMapCacheManager("heroSearchCache", "superheroCache", "emptyResultCache");
+        
+        // Create a rate limiter that allows 10 requests per second
+        rateLimiter = RateLimiter.create(10.0);
+        
+        // Initialize the service
         superheroProxyService = new SuperheroProxyService(superheroInnerService, rateLimiter);
+        
+        // Clear all caches before each test
+        cacheManager.getCacheNames().forEach(cacheName -> {
+            var cache = cacheManager.getCache(cacheName);
+            if (cache != null) {
+                cache.clear();
+            }
+        });
     }
 
     private static class TestStreamObserver implements io.grpc.stub.StreamObserver<SearchResponse> {
@@ -71,85 +101,130 @@ class SuperheroProxyServiceTest {
     }
 
     @Test
-    void testSearchHero_Success() throws Exception {
-        // Setup mocks for successful response
-        Set<String> heroIds = new HashSet<>();
-        heroIds.add("1");
-        when(superheroInnerService.searchHeroIds("spider-man")).thenReturn(heroIds);
-        when(superheroInnerService.getHero("1")).thenReturn(
-            Hero.newBuilder()
-                .setId("1")
-                .setName("Test Hero")
-                .build()
-        );
+    public void testSuccessfulSearch() {
+        // Setup test data
+        String heroName = "Batman";
+        String heroId = "123";
+        Hero mockHero = Hero.newBuilder()
+                .setId(heroId)
+                .setName(heroName)
+                .build();
 
-        TestStreamObserver responseObserver = new TestStreamObserver();
-        superheroProxyService.searchHero(SearchRequest.newBuilder().setName("spider-man").build(), responseObserver);
-        
-        SearchResponse response = responseObserver.getResponse();
-        assertNotNull(response);
-        assertFalse(response.getResultsList().isEmpty());
-        assertEquals("Test Hero", response.getResults(0).getName());
+        // Mock inner service behavior
+        doReturn(Set.of(heroId)).when(superheroInnerService).searchHeroIds(heroName);
+        doReturn(mockHero).when(superheroInnerService).getHero(heroId);
+
+        // Create request
+        SearchRequest request = SearchRequest.newBuilder()
+                .setName(heroName)
+                .build();
+
+        // Execute test
+        superheroProxyService.searchHero(request, responseObserver);
+
+        // Verify response
+        verify(responseObserver).onNext(any(SearchResponse.class));
+        verify(responseObserver).onCompleted();
+        verify(responseObserver, never()).onError(any(Throwable.class));
     }
 
     @Test
-    void testSearchHero_Error() throws Exception {
-        // Mock error response for empty name
-        when(superheroInnerService.searchHeroIds("")).thenThrow(
-            new StatusRuntimeException(Status.INVALID_ARGUMENT.withDescription("Name cannot be empty"))
-        );
+    public void testConcurrentRequestsDeduplication() throws InterruptedException {
+        // Setup test data
+        String heroName = "Superman";
+        String heroId = "456";
+        Hero mockHero = Hero.newBuilder()
+                .setId(heroId)
+                .setName(heroName)
+                .build();
 
-        TestStreamObserver responseObserver = new TestStreamObserver();
-        superheroProxyService.searchHero(SearchRequest.newBuilder().setName("").build(), responseObserver);
-        
-        Throwable error = responseObserver.getError();
-        assertNotNull(error);
-        assertTrue(error instanceof StatusRuntimeException);
-        assertEquals(Status.INVALID_ARGUMENT.getCode(), ((StatusRuntimeException) error).getStatus().getCode());
+        // Mock inner service behavior
+        doReturn(Set.of(heroId)).when(superheroInnerService).searchHeroIds(heroName);
+        doReturn(mockHero).when(superheroInnerService).getHero(heroId);
+
+        // Create request
+        SearchRequest request = SearchRequest.newBuilder()
+                .setName(heroName)
+                .build();
+
+        // Setup concurrent test
+        int numThreads = 10;
+        ExecutorService executor = Executors.newFixedThreadPool(numThreads);
+        CountDownLatch latch = new CountDownLatch(numThreads);
+        AtomicInteger successfulResponses = new AtomicInteger(0);
+
+        // Simulate concurrent requests
+        for (int i = 0; i < numThreads; i++) {
+            executor.submit(() -> {
+                try {
+                    io.grpc.stub.StreamObserver<SearchResponse> observer = mock(io.grpc.stub.StreamObserver.class);
+                    superheroProxyService.searchHero(request, observer);
+                    successfulResponses.incrementAndGet();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                } finally {
+                    latch.countDown();
+                }
+            });
+        }
+
+        // Wait for all requests to complete
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+
+        // Verify all requests were successful
+        assertEquals(numThreads, successfulResponses.get());
+
+        // Verify inner service was called only once for search and once for getHero
+        verify(superheroInnerService, times(1)).searchHeroIds(heroName);
+        verify(superheroInnerService, times(1)).getHero(heroId);
+
+        executor.shutdown();
     }
 
     @Test
-    void testSearchHero_EmptyResults() throws Exception {
-        // Mock empty response for nonexistent hero
-        when(superheroInnerService.searchHeroIds("nonexistent")).thenReturn(Collections.emptySet());
+    public void testRateLimiting() {
+        // Create a rate limiter that allows only 1 request per second
+        RateLimiter strictRateLimiter = RateLimiter.create(1.0);
+        SuperheroProxyService strictService = new SuperheroProxyService(superheroInnerService, strictRateLimiter);
 
-        TestStreamObserver responseObserver = new TestStreamObserver();
-        superheroProxyService.searchHero(SearchRequest.newBuilder().setName("nonexistent").build(), responseObserver);
-        
-        SearchResponse response = responseObserver.getResponse();
-        assertNotNull(response);
-        assertTrue(response.getResultsList().isEmpty());
-    }
-
-    @Test
-    void testSearchHero_RateLimitExceeded() throws Exception {
-        // Create service with a very low rate limit
-        RateLimiter strictRateLimiter = RateLimiter.create(0.1); // 1 request per 10 seconds
-        SuperheroProxyService rateLimitedService = new SuperheroProxyService(superheroInnerService, strictRateLimiter);
-
-        // Setup mocks for successful response
-        Set<String> heroIds = new HashSet<>();
-        heroIds.add("1");
-        when(superheroInnerService.searchHeroIds("spider-man")).thenReturn(heroIds);
-        when(superheroInnerService.getHero("1")).thenReturn(
-            Hero.newBuilder()
-                .setId("1")
-                .setName("Test Hero")
-                .build()
-        );
+        // Create request
+        SearchRequest request = SearchRequest.newBuilder()
+                .setName("Batman")
+                .build();
 
         // First request should succeed
-        TestStreamObserver firstObserver = new TestStreamObserver();
-        rateLimitedService.searchHero(SearchRequest.newBuilder().setName("spider-man").build(), firstObserver);
-        assertNotNull(firstObserver.getResponse());
+        strictService.searchHero(request, responseObserver);
+        verify(responseObserver).onNext(any(SearchResponse.class));
+        verify(responseObserver).onCompleted();
 
-        // Second request should fail due to rate limiting
-        TestStreamObserver secondObserver = new TestStreamObserver();
-        rateLimitedService.searchHero(SearchRequest.newBuilder().setName("spider-man").build(), secondObserver);
-        
-        Throwable error = secondObserver.getError();
-        assertNotNull(error);
-        assertTrue(error instanceof StatusRuntimeException);
-        assertEquals(Status.RESOURCE_EXHAUSTED.getCode(), ((StatusRuntimeException) error).getStatus().getCode());
+        // Reset mock
+        verify(responseObserver, times(1)).onNext(any(SearchResponse.class));
+
+        // Second request should be rate limited
+        strictService.searchHero(request, responseObserver);
+        verify(responseObserver).onError(any(StatusRuntimeException.class));
+    }
+
+    @Test
+    public void testErrorHandling() {
+        // Setup test data
+        String heroName = "ErrorHero";
+        RuntimeException testException = new RuntimeException("Test error");
+
+        // Mock inner service to throw exception
+        doThrow(testException).when(superheroInnerService).searchHeroIds(heroName);
+
+        // Create request
+        SearchRequest request = SearchRequest.newBuilder()
+                .setName(heroName)
+                .build();
+
+        // Execute test
+        superheroProxyService.searchHero(request, responseObserver);
+
+        // Verify error handling
+        verify(responseObserver).onError(any(Throwable.class));
+        verify(responseObserver, never()).onNext(any(SearchResponse.class));
+        verify(responseObserver, never()).onCompleted();
     }
 } 

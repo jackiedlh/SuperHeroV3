@@ -1,9 +1,6 @@
 package com.example.superheroproxy.service;
 
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.ReentrantLock;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,8 +10,6 @@ import com.example.superheroproxy.proto.Hero;
 import com.example.superheroproxy.proto.SearchRequest;
 import com.example.superheroproxy.proto.SearchResponse;
 import com.example.superheroproxy.proto.SuperheroServiceGrpc;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
 import com.google.common.util.concurrent.RateLimiter;
 
 import io.grpc.Status;
@@ -30,8 +25,6 @@ import net.devh.boot.grpc.server.service.GrpcService;
  * - Search operations for heroes by name
  * - Error handling and logging
  * - Response streaming to clients
- * - Request deduplication
- * - Cache penetration protection
  * 
  * This is the main entry point for gRPC clients to interact with the superhero data system.
  */
@@ -42,11 +35,6 @@ public class SuperheroProxyService extends SuperheroServiceGrpc.SuperheroService
 
     private final SuperheroInnerService superheroInnerService;
     private final RateLimiter rateLimiter;
-    
-    // Cache for storing empty results to prevent cache penetration
-    private final Cache<String, Boolean> emptyResultCache;
-    // Map for request deduplication and synchronization
-    private final ConcurrentHashMap<String, ReentrantLock> requestLocks;
 
     /**
      * Constructs a new SuperheroProxyService with the specified inner service and rate limiter.
@@ -58,24 +46,15 @@ public class SuperheroProxyService extends SuperheroServiceGrpc.SuperheroService
     public SuperheroProxyService(SuperheroInnerService superheroInnerService, RateLimiter rateLimiter) {
         this.superheroInnerService = superheroInnerService;
         this.rateLimiter = rateLimiter;
-        
-        // Initialize empty result cache with 5 minutes expiration
-        this.emptyResultCache = CacheBuilder.newBuilder()
-                .expireAfterWrite(5, TimeUnit.MINUTES)
-                .build();
-                
-        this.requestLocks = new ConcurrentHashMap<>();
     }
 
     /**
      * Handles search requests for heroes by name.
      * This method:
      * 1. Checks if we can acquire a permit within a reasonable time
-     * 2. Implements request deduplication
-     * 3. Implements cache penetration protection
-     * 4. Retrieves matching hero IDs
-     * 5. Fetches detailed hero information for each ID
-     * 6. Streams the results back to the client
+     * 2. Retrieves matching hero IDs
+     * 3. Fetches detailed hero information for each ID
+     * 4. Streams the results back to the client
      * 
      * @param request The search request containing the hero name to search for
      * @param responseObserver The stream observer for sending responses back to the client
@@ -92,67 +71,17 @@ public class SuperheroProxyService extends SuperheroServiceGrpc.SuperheroService
                 return;
             }
 
-            String normalizedName = request.getName().toLowerCase();
-            
-            // Check empty result cache first
-            if (emptyResultCache.getIfPresent(normalizedName) != null) {
-                logger.debug("Empty result found in cache for name: {}", request.getName());
-                responseObserver.onNext(SearchResponse.newBuilder()
+            SearchResponse.Builder responseBuilder = SearchResponse.newBuilder()
                     .setResponse("success")
-                    .setResultsFor(request.getName())
-                    .build());
-                responseObserver.onCompleted();
-                return;
-            }
+                    .setResultsFor(request.getName());
+            Set<String> ids = superheroInnerService.searchHeroIds(request.getName());
+            ids.forEach(id -> {
+                Hero hero = superheroInnerService.getHero(id);
+                responseBuilder.addResults(hero);
+            });
 
-            // Get or create a lock for request deduplication
-            ReentrantLock lock = requestLocks.computeIfAbsent(normalizedName, k -> new ReentrantLock());
-            lock.lock();
-            try {
-                // Double-check empty result cache to prevent race conditions
-                if (emptyResultCache.getIfPresent(normalizedName) != null) {
-                    responseObserver.onNext(SearchResponse.newBuilder()
-                        .setResponse("success")
-                        .setResultsFor(request.getName())
-                        .build());
-                    responseObserver.onCompleted();
-                    return;
-                }
-
-                SearchResponse.Builder responseBuilder = SearchResponse.newBuilder()
-                        .setResponse("success")
-                        .setResultsFor(request.getName());
-                
-                Set<String> ids = superheroInnerService.searchHeroIds(request.getName());
-                if (ids == null) {
-                    // Cache empty result to prevent future cache penetration
-                    emptyResultCache.put(normalizedName, true);
-                    responseObserver.onNext(responseBuilder.build());
-                    responseObserver.onCompleted();
-                    return;
-                }
-
-                ids.forEach(id -> {
-                    Hero hero = superheroInnerService.getHero(id);
-                    if (hero != null) {
-                        responseBuilder.addResults(hero);
-                    }
-                });
-
-                // Cache empty result if no heroes found
-                if (responseBuilder.getResultsCount() == 0) {
-                    emptyResultCache.put(normalizedName, true);
-                }
-
-                responseObserver.onNext(responseBuilder.build());
-                responseObserver.onCompleted();
-            } finally {
-                lock.unlock();
-                // Only remove the lock if no one is waiting for it
-                if (!lock.hasQueuedThreads()) {
-                    requestLocks.remove(normalizedName);
-                }
-            }
+            responseObserver.onNext(responseBuilder.build());
+            responseObserver.onCompleted();
         } catch (Exception e) {
             logger.error("Error processing request", e);
             responseObserver.onError(e);
