@@ -92,7 +92,7 @@ public class SuperheroProxyService extends SuperheroServiceGrpc.SuperheroService
             }
             
             // Calculate start and end indices for the current page
-            int startIndex = (pageNumber - 1) * pageSize;
+            int startIndex = pageNumber==0 ? 0 :(pageNumber - 1) * pageSize;
             int endIndex = Math.min(startIndex + pageSize, totalCount);
             
             // Get the subset of IDs for the current page

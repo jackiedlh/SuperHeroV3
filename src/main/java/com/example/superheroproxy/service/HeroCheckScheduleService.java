@@ -174,8 +174,9 @@ public class HeroCheckScheduleService {
 
             //for local server performance, only get first 20 heroes, remove first and add 2 more for next //TODO: MOCK only
             int size = monitoredHeroes.isEmpty()? 20: Math.min(monitoredHeroes.size()+2, superheroIds.size());
+            int skipNum = monitoredHeroes.isEmpty()?0:1;
 
-            superheroIds.keySet().stream().limit(size).forEach(heroId -> {
+            superheroIds.keySet().stream().skip(skipNum).limit(size).forEach(heroId -> {
                 if (!monitoredHeroes.contains(heroId)) {
                     logger.info("Found new hero ID: {}", heroId);
                     addHeroToMonitor(heroId);
