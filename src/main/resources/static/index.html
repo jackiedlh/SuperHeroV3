@@ -290,6 +290,31 @@
             margin-right: 10px;
             cursor: pointer;
         }
+        .pagination-controls {
+            margin-top: 10px;
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+        }
+
+        .pagination-controls button {
+            padding: 5px 10px;
+            border: 1px solid #ddd;
+            background-color: #f5f5f5;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .pagination-controls button:hover {
+            background-color: #e0e0e0;
+        }
+
+        .pagination-controls .current-page {
+            padding: 5px 10px;
+            background-color: #007bff;
+            color: white;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
@@ -313,6 +338,7 @@
                         <tbody id="searchResultsBody">
                         </tbody>
                     </table>
+                    <div id="paginationControls" class="pagination-controls"></div>
                 </div>
             </div>
             <h2>Hero Subscription <div id="status" class="status disconnected">Disconnected</div></h2>

@@ -1,23 +1,19 @@
 package com.example.superheroproxy.controller;
 
-import com.example.superheroproxy.config.CacheConfig;
-import com.example.superheroproxy.dto.HeroDto;
+import com.example.superheroproxy.dto.PaginatedSearchResultDto;
 import com.example.superheroproxy.dto.SearchResultDto;
-import com.example.superheroproxy.proto.Hero;
 import com.example.superheroproxy.proto.SearchRequest;
 import com.example.superheroproxy.proto.SearchResponse;
 import com.example.superheroproxy.service.SuperheroProxyService;
 import io.grpc.stub.StreamObserver;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -47,10 +43,15 @@ public class HeroController {
      * Searches for heroes by name using gRPC service.
      *
      * @param name The name to search for
+     * @param page The page number to retrieve
+     * @param pageSize The number of heroes per page
      * @return ResponseEntity containing a list of search results or 400 if the request fails
      */
     @GetMapping("/search")
-    public ResponseEntity<List<SearchResultDto>> searchHero(@RequestParam String name) {
+    public ResponseEntity<PaginatedSearchResultDto> searchHero(
+            @RequestParam String name,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int pageSize) {
         try {
             // Create a latch to wait for the asynchronous response
             CountDownLatch latch = new CountDownLatch(1);
@@ -59,6 +60,8 @@ public class HeroController {
 
             SearchRequest request = SearchRequest.newBuilder()
                     .setName(name)
+                    .setPageNumber(page)
+                    .setPageSize(pageSize)
                     .build();
 
             // Create a StreamObserver to handle the gRPC response
@@ -98,7 +101,16 @@ public class HeroController {
             List<SearchResultDto> results = response.getResultsList().stream()
                     .map(hero -> new SearchResultDto(hero.getId(), hero.getName()))
                     .collect(Collectors.toList());
-            return ResponseEntity.ok(results);
+
+            // Create paginated response
+            PaginatedSearchResultDto paginatedResponse = new PaginatedSearchResultDto(
+                results,
+                response.getCurrentPage(),
+                response.getTotalPages(),
+                response.getTotalCount()
+            );
+
+            return ResponseEntity.ok(paginatedResponse);
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
         }
