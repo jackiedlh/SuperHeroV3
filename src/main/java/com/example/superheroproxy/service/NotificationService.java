@@ -48,19 +48,7 @@ public class NotificationService extends NotificationServiceGrpc.NotificationSer
     private static final Logger logger = LoggerFactory.getLogger(NotificationService.class);
     
     private final NotificationConfig config;
-    
-    // Configuration constants for service limits and timing
-    /** Maximum number of subscribers allowed per hero */
-    private static final int MAX_SUBSCRIBERS_PER_HERO = 1000;
-    /** Maximum total number of subscribers across all heroes */
-    private static final int MAX_TOTAL_SUBSCRIBERS = 10000;
-    /** Interval in minutes for cleaning up inactive subscribers */
-    private static final int CLEANUP_INTERVAL_MINUTES = 5;
-    /** Timeout in minutes after which inactive subscribers are removed */
-    private static final int SUBSCRIBER_TIMEOUT_MINUTES = 30;
-    /** Size of the thread pool for processing notifications */
-    private static final int NOTIFICATION_THREAD_POOL_SIZE = 10;
-    
+
     // Thread pools for handling asynchronous operations
     /** Thread pool for processing notifications asynchronously */
     private final ExecutorService notificationExecutor;
@@ -310,7 +298,7 @@ public class NotificationService extends NotificationServiceGrpc.NotificationSer
                 heroId, 
                 k -> new AtomicInteger(0)
             );
-            return rateCounter.incrementAndGet() <= 1000; // 1000 notifications per minute
+            return rateCounter.incrementAndGet() <= config.getRateLimitPerMinute();
         } finally {
             rateLimitLock.readLock().unlock();
         }

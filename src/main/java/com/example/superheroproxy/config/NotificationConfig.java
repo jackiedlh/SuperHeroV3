@@ -16,4 +16,5 @@ public class NotificationConfig {
     private int cleanupIntervalMinutes = 5;
     private int subscriberTimeoutMinutes = 30;
     private int notificationThreadPoolSize = 10;
+    private int rateLimitPerMinute = 1000;
 } 
