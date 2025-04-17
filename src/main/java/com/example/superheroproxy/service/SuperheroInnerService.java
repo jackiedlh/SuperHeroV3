@@ -3,7 +3,7 @@ package com.example.superheroproxy.service;
 import java.nio.charset.StandardCharsets;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -38,8 +38,8 @@ public class SuperheroInnerService {
     private final CacheUpdateScheduleService cacheUpdateScheduleService;
     private final NotificationService notificationService;
     private final ExternalApiService externalAPIService;
-    private final ConcurrentHashMap<String, ReentrantLock> searchLocks;
-    private final ConcurrentHashMap<String, ReentrantLock> heroLocks;
+    private final ConcurrentHashMap<String, AtomicInteger> searchCounters;
+    private final ConcurrentHashMap<String, AtomicInteger> heroCounters;
     private final ConcurrentHashMap<String, Set<String>> searchCache;
     private final ConcurrentHashMap<String, Hero> heroCache;
     private final BloomFilter<String> nonExistentHeroFilter;
@@ -60,8 +60,8 @@ public class SuperheroInnerService {
         this.cacheUpdateScheduleService = cacheUpdateScheduleService;
         this.notificationService = notificationService;
         this.externalAPIService = externalAPIService;
-        this.searchLocks = new ConcurrentHashMap<>();
-        this.heroLocks = new ConcurrentHashMap<>();
+        this.searchCounters = new ConcurrentHashMap<>();
+        this.heroCounters = new ConcurrentHashMap<>();
         this.searchCache = new ConcurrentHashMap<>();
         this.heroCache = new ConcurrentHashMap<>();
         
@@ -91,10 +91,10 @@ public class SuperheroInnerService {
             return Set.of();
         }
         
-        ReentrantLock lock = searchLocks.computeIfAbsent(normalizedName, k -> new ReentrantLock());
+        AtomicInteger counter = searchCounters.computeIfAbsent(normalizedName, k -> new AtomicInteger(0));
+        counter.incrementAndGet();
         
         try {
-            lock.lock();
             return searchCache.computeIfAbsent(normalizedName, key -> {
                 try {
                     SearchResponse searchResponse = externalAPIService.searchHero(key);
@@ -115,10 +115,8 @@ public class SuperheroInnerService {
                 }
             });
         } finally {
-            lock.unlock();
-            // Clean up if no one is waiting
-            if (!lock.hasQueuedThreads()) {
-                searchLocks.remove(normalizedName);
+            if (counter.decrementAndGet() == 0) {
+                searchCounters.remove(normalizedName);
                 searchCache.remove(normalizedName);
             }
         }
@@ -135,10 +133,10 @@ public class SuperheroInnerService {
      */
     @Cacheable(value = CacheConfig.SUPERHERO_CACHE, key = "#id")
     public Hero getHero(String id) {
-        ReentrantLock lock = heroLocks.computeIfAbsent(id, k -> new ReentrantLock());
+        AtomicInteger counter = heroCounters.computeIfAbsent(id, k -> new AtomicInteger(0));
+        counter.incrementAndGet();
         
         try {
-            lock.lock();
             return heroCache.computeIfAbsent(id, key -> {
                 try {
                     // Register the hero for monitoring
@@ -157,10 +155,8 @@ public class SuperheroInnerService {
                 }
             });
         } finally {
-            lock.unlock();
-            // Clean up if no one is waiting
-            if (!lock.hasQueuedThreads()) {
-                heroLocks.remove(id);
+            if (counter.decrementAndGet() == 0) {
+                heroCounters.remove(id);
                 heroCache.remove(id);
             }
         }
