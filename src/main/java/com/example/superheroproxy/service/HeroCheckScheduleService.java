@@ -1,14 +1,9 @@
 package com.example.superheroproxy.service;
 
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentSkipListSet;
-import java.util.concurrent.TimeUnit;
-import java.util.regex.Pattern;
-import java.util.concurrent.CompletableFuture;
-import java.util.List;
-import java.util.ArrayList;
-
+import com.example.superheroproxy.config.CacheConfig;
+import com.example.superheroproxy.proto.Hero;
+import com.example.superheroproxy.proto.UpdateType;
+import com.example.superheroproxy.utils.SuperheroIdStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,11 +15,14 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import com.example.superheroproxy.config.CacheConfig;
-import com.example.superheroproxy.proto.Hero;
-import com.example.superheroproxy.proto.UpdateType;
-import com.example.superheroproxy.utils.SuperheroIdStore;
-import com.example.superheroproxy.config.AsyncConfig;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 /**
  * Service responsible for managing and updating the superhero data cache.
@@ -39,8 +37,8 @@ import com.example.superheroproxy.config.AsyncConfig;
  */
 @Service
 @EnableAsync
-public class CacheUpdateScheduleService {
-    private static final Logger logger = LoggerFactory.getLogger(CacheUpdateScheduleService.class);
+public class HeroCheckScheduleService {
+    private static final Logger logger = LoggerFactory.getLogger(HeroCheckScheduleService.class);
     private static final Pattern HERO_ID_PATTERN = Pattern.compile("\\|\\s*(\\d+)\\s*\\|");
 
     // Update interval in seconds, injected from application properties
@@ -60,7 +58,6 @@ public class CacheUpdateScheduleService {
     private final NotificationService notificationService;
     private final ExternalApiService externalAPIService;
     private final RestTemplate restTemplate;
-    private final AsyncConfig asyncConfig;
 
     /**
      * Constructs a new CacheUpdateScheduleService with the required dependencies.
@@ -69,20 +66,17 @@ public class CacheUpdateScheduleService {
      * @param notificationService Service for notifying about hero updates
      * @param externalAPIService Service for interacting with the external API
      * @param restTemplate The RestTemplate for making HTTP requests
-     * @param asyncConfig The AsyncConfig for configuring asynchronous execution
      */
-    public CacheUpdateScheduleService(
+    public HeroCheckScheduleService(
             CacheManager cacheManager,
             NotificationService notificationService,
             ExternalApiService externalAPIService,
-            RestTemplate restTemplate,
-            AsyncConfig asyncConfig) {
+            RestTemplate restTemplate) {
         this.cacheManager = cacheManager;
         this.monitoredHeroes = new ConcurrentSkipListSet<>();
         this.notificationService = notificationService;
         this.externalAPIService = externalAPIService;
         this.restTemplate = restTemplate;
-        this.asyncConfig = asyncConfig;
     }
 
     /**

@@ -6,10 +6,8 @@ import com.example.superheroproxy.proto.Hero;
 import com.example.superheroproxy.proto.UpdateType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
@@ -19,7 +17,6 @@ import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.Arrays;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -58,8 +55,8 @@ class SuperheroInnerServiceTest {
         }
 
         @Bean
-        public CacheUpdateScheduleService cacheUpdateScheduleService() {
-            return mock(CacheUpdateScheduleService.class);
+        public HeroCheckScheduleService cacheUpdateScheduleService() {
+            return mock(HeroCheckScheduleService.class);
         }
 
         @Bean
@@ -75,10 +72,10 @@ class SuperheroInnerServiceTest {
         @Bean
         public SuperheroInnerService superheroInnerService(
                 TestRestTemplate restTemplate,
-                CacheUpdateScheduleService cacheUpdateScheduleService,
+                HeroCheckScheduleService heroCheckScheduleService,
                 NotificationService notificationService,
                 ExternalApiService externalAPIService) {
-            return new SuperheroInnerService(restTemplate, cacheUpdateScheduleService, notificationService, externalAPIService);
+            return new SuperheroInnerService(restTemplate, heroCheckScheduleService, notificationService, externalAPIService);
         }
     }
 
@@ -88,7 +85,7 @@ class SuperheroInnerServiceTest {
     private TestRestTemplate restTemplate;
 
     @Autowired
-    private CacheUpdateScheduleService cacheUpdateScheduleService;
+    private HeroCheckScheduleService heroCheckScheduleService;
 
     @Autowired
     private NotificationService notificationService;
@@ -105,7 +102,7 @@ class SuperheroInnerServiceTest {
     @BeforeEach
     void setUp() {
         // Reset mocks
-        reset(externalAPIService, cacheUpdateScheduleService, notificationService);
+        reset(externalAPIService, heroCheckScheduleService, notificationService);
         // Clear all caches before each test
         cacheManager.getCacheNames().forEach(cacheName -> {
             var cache = cacheManager.getCache(cacheName);
@@ -415,7 +412,7 @@ class SuperheroInnerServiceTest {
 
         // Verify external API was called and hero was registered for monitoring
         verify(externalAPIService, times(1)).getHero(heroId);
-        verify(cacheUpdateScheduleService, times(1)).addHeroToMonitor(heroId);
+        verify(heroCheckScheduleService, times(1)).addHeroToMonitor(heroId);
         verify(notificationService, times(1)).notifyHeroUpdate(heroId, mockHero, UpdateType.NEW);
 
         // Second call - should use cache
@@ -425,7 +422,7 @@ class SuperheroInnerServiceTest {
 
         // Verify external API was not called again and no additional notifications
         verify(externalAPIService, times(1)).getHero(heroId);
-        verify(cacheUpdateScheduleService, times(1)).addHeroToMonitor(heroId);
+        verify(heroCheckScheduleService, times(1)).addHeroToMonitor(heroId);
         verify(notificationService, times(1)).notifyHeroUpdate(heroId, mockHero, UpdateType.NEW);
     }
 
@@ -444,7 +441,7 @@ class SuperheroInnerServiceTest {
 
         // Verify external API was called and hero was registered for monitoring
         verify(externalAPIService, times(1)).getHero(heroId);
-        verify(cacheUpdateScheduleService, times(1)).addHeroToMonitor(heroId);
+        verify(heroCheckScheduleService, times(1)).addHeroToMonitor(heroId);
         verify(notificationService, never()).notifyHeroUpdate(anyString(), any(Hero.class), any(UpdateType.class));
 
         // Second call - should use cached null result
@@ -469,7 +466,7 @@ class SuperheroInnerServiceTest {
 
         // Verify external API was called and hero was registered for monitoring
         verify(externalAPIService, times(1)).getHero(heroId);
-        verify(cacheUpdateScheduleService, times(1)).addHeroToMonitor(heroId);
+        verify(heroCheckScheduleService, times(1)).addHeroToMonitor(heroId);
         verify(notificationService, never()).notifyHeroUpdate(anyString(), any(Hero.class), any(UpdateType.class));
 
         // Second call - should use cached null result

@@ -35,7 +35,7 @@ import com.google.common.hash.Funnels;
 public class SuperheroInnerService {
     private static final Logger logger = LoggerFactory.getLogger(SuperheroInnerService.class);
 
-    private final CacheUpdateScheduleService cacheUpdateScheduleService;
+    private final HeroCheckScheduleService heroCheckScheduleService;
     private final NotificationService notificationService;
     private final ExternalApiService externalAPIService;
     private final ConcurrentHashMap<String, AtomicInteger> searchCounters;
@@ -48,16 +48,16 @@ public class SuperheroInnerService {
      * Constructs a new SuperheroInnerService with the required dependencies.
      * 
      * @param restTemplate The RestTemplate for making HTTP requests
-     * @param cacheUpdateScheduleService Service for managing cache updates
+     * @param heroCheckScheduleService Service for managing cache updates
      * @param notificationService Service for notifying clients about hero updates
      * @param externalAPIService Service for interacting with the external superhero API
      */
     public SuperheroInnerService(
             RestTemplate restTemplate,
-            CacheUpdateScheduleService cacheUpdateScheduleService,
+            HeroCheckScheduleService heroCheckScheduleService,
             NotificationService notificationService,
             ExternalApiService externalAPIService) {
-        this.cacheUpdateScheduleService = cacheUpdateScheduleService;
+        this.heroCheckScheduleService = heroCheckScheduleService;
         this.notificationService = notificationService;
         this.externalAPIService = externalAPIService;
         this.searchCounters = new ConcurrentHashMap<>();
@@ -140,7 +140,7 @@ public class SuperheroInnerService {
             return heroCache.computeIfAbsent(id, key -> {
                 try {
                     // Register the hero for monitoring
-                    cacheUpdateScheduleService.addHeroToMonitor(key);
+                    heroCheckScheduleService.addHeroToMonitor(key);
                     Hero hero = externalAPIService.getHero(key);
 
                     if (hero != null) {
