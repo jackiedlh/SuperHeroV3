@@ -164,13 +164,13 @@ class SuperheroInnerServiceTest {
 
         // First request with mixed case (cache miss)
         Set<String> ids1 = superheroInnerService.searchHeroIds("Spider-Man");
-        verify(externalAPIService).searchHero("Spider-Man");
+        verify(externalAPIService).searchHero("Spider-Man".toLowerCase());
 
         // Second request with lowercase (cache hit)
         Set<String> ids2 = superheroInnerService.searchHeroIds("spider-man");
         
         // Verify that the search API was called only once
-        verify(externalAPIService).searchHero("Spider-Man");
+        verify(externalAPIService).searchHero("Spider-Man".toLowerCase());
 
         // Verify response content
         assertEquals(ids1, ids2);
