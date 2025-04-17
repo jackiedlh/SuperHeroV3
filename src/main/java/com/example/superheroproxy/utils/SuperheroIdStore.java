@@ -1,6 +1,8 @@
 package com.example.superheroproxy.utils;
 
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -9,8 +11,9 @@ import org.jsoup.select.Elements;
 import java.util.HashMap;
 import java.util.Map;
 
-@Slf4j
+@Component
 public final class SuperheroIdStore {
+    private static final Logger log = LoggerFactory.getLogger(SuperheroIdStore.class);
 
     private SuperheroIdStore() {
         // Private constructor to prevent instantiation

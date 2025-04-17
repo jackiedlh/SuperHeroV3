@@ -67,4 +67,12 @@ logging:
   level:
     root: INFO
     com.example.superheroproxy: DEBUG
-    net.devh.boot.grpc: INFO 
+    net.devh.boot.grpc: INFO
+
+# Notification Configuration
+notification:
+  max-subscribers-per-hero: 1000
+  max-total-subscribers: 10000
+  cleanup-interval-minutes: 5
+  subscriber-timeout-minutes: 30
+  notification-thread-pool-size: 10 
