@@ -1,12 +1,15 @@
 package com.example.superheroproxy.service;
 
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import com.example.superheroproxy.proto.Hero;
 import com.example.superheroproxy.proto.SearchRequest;
 import com.example.superheroproxy.proto.SearchResponse;
 import com.example.superheroproxy.proto.SuperheroServiceGrpc;
@@ -32,9 +35,11 @@ import net.devh.boot.grpc.server.service.GrpcService;
 public class SuperheroProxyService extends SuperheroServiceGrpc.SuperheroServiceImplBase {
 
     private static final Logger logger = LoggerFactory.getLogger(SuperheroProxyService.class);
+    private static final int MAX_THREADS = 10; // Maximum number of concurrent getHero calls
 
     private final SuperheroInnerService superheroInnerService;
     private final RateLimiter rateLimiter;
+    private final ExecutorService executorService;
 
     /**
      * Constructs a new SuperheroProxyService with the specified inner service and rate limiter.
@@ -46,6 +51,7 @@ public class SuperheroProxyService extends SuperheroServiceGrpc.SuperheroService
     public SuperheroProxyService(SuperheroInnerService superheroInnerService, RateLimiter rateLimiter) {
         this.superheroInnerService = superheroInnerService;
         this.rateLimiter = rateLimiter;
+        this.executorService = Executors.newFixedThreadPool(MAX_THREADS);
     }
 
     /**
@@ -74,14 +80,34 @@ public class SuperheroProxyService extends SuperheroServiceGrpc.SuperheroService
             SearchResponse.Builder responseBuilder = SearchResponse.newBuilder()
                     .setResponse("success")
                     .setResultsFor(request.getName());
-            Set<String> ids = superheroInnerService.searchHeroIds(request.getName());
-            ids.forEach(id -> {
-                Hero hero = superheroInnerService.getHero(id);
-                responseBuilder.addResults(hero);
-            });
 
-            responseObserver.onNext(responseBuilder.build());
-            responseObserver.onCompleted();
+            Set<String> ids = superheroInnerService.searchHeroIds(request.getName());
+            
+            // Create a list of CompletableFuture for each hero retrieval
+            var heroFutures = ids.stream()
+                .map(id -> CompletableFuture.supplyAsync(
+                    () -> superheroInnerService.getHero(id),
+                    executorService
+                ))
+                .collect(Collectors.toList());
+
+            // Wait for all futures to complete and collect results
+            CompletableFuture.allOf(heroFutures.toArray(new CompletableFuture[0]))
+                .thenAccept(v -> {
+                    heroFutures.stream()
+                        .map(CompletableFuture::join)
+                        .filter(hero -> hero != null) // Filter out null results
+                        .forEach(responseBuilder::addResults);
+                    
+                    responseObserver.onNext(responseBuilder.build());
+                    responseObserver.onCompleted();
+                })
+                .exceptionally(throwable -> {
+                    logger.error("Error processing hero retrieval", throwable);
+                    responseObserver.onError(throwable);
+                    return null;
+                });
+
         } catch (Exception e) {
             logger.error("Error processing request", e);
             responseObserver.onError(e);

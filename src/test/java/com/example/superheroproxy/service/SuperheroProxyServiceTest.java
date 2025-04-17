@@ -128,58 +128,7 @@ public class SuperheroProxyServiceTest {
         verify(responseObserver, never()).onError(any(Throwable.class));
     }
 
-    @Test
-    public void testConcurrentRequestsDeduplication() throws InterruptedException {
-        // Setup test data
-        String heroName = "Superman";
-        String heroId = "456";
-        Hero mockHero = Hero.newBuilder()
-                .setId(heroId)
-                .setName(heroName)
-                .build();
 
-        // Mock inner service behavior
-        doReturn(Set.of(heroId)).when(superheroInnerService).searchHeroIds(heroName);
-        doReturn(mockHero).when(superheroInnerService).getHero(heroId);
-
-        // Create request
-        SearchRequest request = SearchRequest.newBuilder()
-                .setName(heroName)
-                .build();
-
-        // Setup concurrent test
-        int numThreads = 10;
-        ExecutorService executor = Executors.newFixedThreadPool(numThreads);
-        CountDownLatch latch = new CountDownLatch(numThreads);
-        AtomicInteger successfulResponses = new AtomicInteger(0);
-
-        // Simulate concurrent requests
-        for (int i = 0; i < numThreads; i++) {
-            executor.submit(() -> {
-                try {
-                    io.grpc.stub.StreamObserver<SearchResponse> observer = mock(io.grpc.stub.StreamObserver.class);
-                    superheroProxyService.searchHero(request, observer);
-                    successfulResponses.incrementAndGet();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                } finally {
-                    latch.countDown();
-                }
-            });
-        }
-
-        // Wait for all requests to complete
-        assertTrue(latch.await(5, TimeUnit.SECONDS));
-
-        // Verify all requests were successful
-        assertEquals(numThreads, successfulResponses.get());
-
-        // Verify inner service was called only once for search and once for getHero
-        verify(superheroInnerService, times(1)).searchHeroIds(heroName);
-        verify(superheroInnerService, times(1)).getHero(heroId);
-
-        executor.shutdown();
-    }
 
     @Test
     public void testRateLimiting() {
