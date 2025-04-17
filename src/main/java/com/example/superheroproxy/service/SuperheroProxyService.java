@@ -77,14 +77,39 @@ public class SuperheroProxyService extends SuperheroServiceGrpc.SuperheroService
                 return;
             }
 
+            // Get all matching IDs first
+            Set<String> allIds = superheroInnerService.searchHeroIds(request.getName());
+            int totalCount = allIds.size();
+            
+            // Calculate pagination
+            int pageSize = request.getPageSize() > 0 ? request.getPageSize() : 10; // Default page size
+            int pageNumber = request.getPageNumber() > 0 ? request.getPageNumber() : 1; // Default to first page
+            int totalPages = (int) Math.ceil((double) totalCount / pageSize);
+            
+            // Validate page number
+            if (pageNumber > totalPages) {
+                pageNumber = totalPages;
+            }
+            
+            // Calculate start and end indices for the current page
+            int startIndex = (pageNumber - 1) * pageSize;
+            int endIndex = Math.min(startIndex + pageSize, totalCount);
+            
+            // Get the subset of IDs for the current page
+            var pageIds = allIds.stream()
+                .skip(startIndex)
+                .limit(endIndex - startIndex)
+                .collect(Collectors.toList());
+
             SearchResponse.Builder responseBuilder = SearchResponse.newBuilder()
                     .setResponse("success")
-                    .setResultsFor(request.getName());
+                    .setResultsFor(request.getName())
+                    .setTotalCount(totalCount)
+                    .setCurrentPage(pageNumber)
+                    .setTotalPages(totalPages);
 
-            Set<String> ids = superheroInnerService.searchHeroIds(request.getName());
-            
             // Create a list of CompletableFuture for each hero retrieval
-            var heroFutures = ids.stream()
+            var heroFutures = pageIds.stream()
                 .map(id -> CompletableFuture.supplyAsync(
                     () -> superheroInnerService.getHero(id),
                     executorService

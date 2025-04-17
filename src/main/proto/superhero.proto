@@ -14,12 +14,17 @@ service SuperheroService {
 
 message SearchRequest {
   string name = 1;
+  int32 page_size = 2;  // Number of results per page
+  int32 page_number = 3; // 1-based page number
 }
 
 message SearchResponse {
   string response = 1;
   string results_for = 2;
   repeated Hero results = 3;
+  int32 total_count = 4;  // Total number of results available
+  int32 current_page = 5; // Current page number
+  int32 total_pages = 6;  // Total number of pages
 }
 
 message Hero {
