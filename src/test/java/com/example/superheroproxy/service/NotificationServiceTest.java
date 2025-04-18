@@ -1,11 +1,12 @@
 package com.example.superheroproxy.service;
 
+import com.example.superheroproxy.config.AsyncConfig;
+import com.example.superheroproxy.config.NotificationConfig;
 import com.example.superheroproxy.proto.Hero;
 import com.example.superheroproxy.proto.HeroUpdate;
 import com.example.superheroproxy.proto.SubscribeRequest;
 import com.example.superheroproxy.proto.UpdateType;
 import com.example.superheroproxy.utils.ResponseGenerator;
-import com.example.superheroproxy.config.NotificationConfig;
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,6 +17,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.scheduling.annotation.AsyncConfigurer;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -23,6 +26,7 @@ import static org.mockito.Mockito.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.Executor;
 
 @ExtendWith(MockitoExtension.class)
 class NotificationServiceTest {
@@ -38,13 +42,33 @@ class NotificationServiceTest {
     private ServerCallStreamObserver<HeroUpdate> responseObserver2;
     
     @Mock
-    private ServerCallStreamObserver<HeroUpdate> responseObserver3;
+    private ServerCallStreamObserver<HeroUpdate> serverCallStreamObserver;
+
+    private ThreadPoolTaskExecutor taskExecutor;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
         config = new NotificationConfig();
-        notificationService = new NotificationService(config);
+        AsyncConfig asyncConfig = new AsyncConfig();
+        
+        // Configure test executor
+        taskExecutor = new ThreadPoolTaskExecutor();
+        taskExecutor.setCorePoolSize(2);
+        taskExecutor.setMaxPoolSize(4);
+        taskExecutor.setQueueCapacity(50);
+        taskExecutor.setThreadNamePrefix("Test-Async-");
+        taskExecutor.initialize();
+
+        // Create a custom AsyncConfigurer implementation
+        AsyncConfigurer asyncConfigurer = new AsyncConfigurer() {
+            @Override
+            public Executor getAsyncExecutor() {
+                return taskExecutor;
+            }
+        };
+
+        notificationService = new NotificationService(config, asyncConfigurer);
     }
 
     @AfterEach
@@ -115,17 +139,25 @@ class NotificationServiceTest {
     }
 
     @Test
-    void testNotifyAllSubscribers() {
+    void testNotifyAllSubscribers() throws InterruptedException {
+        // Configure mock observers
+        when(responseObserver1.isCancelled()).thenReturn(false);
+        when(responseObserver2.isCancelled()).thenReturn(false);
+        doNothing().when(responseObserver1).onNext(any());
+        doNothing().when(responseObserver2).onNext(any());
+        doNothing().when(responseObserver1).setOnCancelHandler(any());
+        doNothing().when(responseObserver2).setOnCancelHandler(any());
+
         // Given
-        SubscribeRequest allRequest = SubscribeRequest.newBuilder()
+        SubscribeRequest request1 = SubscribeRequest.newBuilder()
                 .setSubscribeAll(true)
                 .build();
-        notificationService.subscribeToUpdates(allRequest, responseObserver1);
-
-        SubscribeRequest specificRequest = SubscribeRequest.newBuilder()
-                .addHeroIds("hero2")
+        SubscribeRequest request2 = SubscribeRequest.newBuilder()
+                .setSubscribeAll(true)
                 .build();
-        notificationService.subscribeToUpdates(specificRequest, responseObserver2);
+
+        notificationService.subscribeToUpdates(request1, responseObserver1);
+        notificationService.subscribeToUpdates(request2, responseObserver2);
 
         Hero hero = Hero.newBuilder().setId("hero1").setName("Test Hero").build();
         UpdateType updateType = UpdateType.UPDATED;
@@ -133,22 +165,38 @@ class NotificationServiceTest {
         // When
         notificationService.notifyHeroUpdate("hero1", hero, updateType);
 
+        // Wait for async notification to be processed
+        Thread.sleep(100);
+
         // Then
         ArgumentCaptor<HeroUpdate> updateCaptor = ArgumentCaptor.forClass(HeroUpdate.class);
-        verify(responseObserver1).onNext(updateCaptor.capture());
-        verify(responseObserver2, never()).onNext(any());
+        verify(responseObserver1, timeout(1000)).onNext(updateCaptor.capture());
+        verify(responseObserver2, timeout(1000)).onNext(updateCaptor.capture());
     }
 
     @Test
-    void testRateLimiting() {
+    void testRateLimiting() throws InterruptedException {
+        // Configure mock observer
+        when(responseObserver1.isCancelled()).thenReturn(false);
+        doNothing().when(responseObserver1).onNext(any());
+        doNothing().when(responseObserver1).setOnCancelHandler(any());
+
         // Given
+        SubscribeRequest request = SubscribeRequest.newBuilder()
+                .addHeroIds("hero1")
+                .build();
+        notificationService.subscribeToUpdates(request, responseObserver1);
+
         Hero hero = Hero.newBuilder().setId("hero1").setName("Test Hero").build();
         UpdateType updateType = UpdateType.UPDATED;
 
         // When - Send more updates than the rate limit
-        for (int i = 0; i < 1001; i++) {
+        for (int i = 0; i < 10001; i++) {
             notificationService.notifyHeroUpdate("hero1", hero, updateType);
         }
+
+        // Wait for async notification to be processed
+        Thread.sleep(100);
 
         // Then - Verify that updates are still being processed
         // (The service should continue to accept updates, just log a warning)
@@ -260,5 +308,27 @@ class NotificationServiceTest {
         // Then
         Hero hero = Hero.newBuilder().setId("hero1").setName("Test Hero").build();
         assertDoesNotThrow(() -> notificationService.notifyHeroUpdate("hero1", hero, UpdateType.UPDATED));
+    }
+
+    @Test
+    void testCleanupInactiveSubscribers() throws InterruptedException {
+        // Configure mock observer
+        when(responseObserver1.isCancelled()).thenReturn(false);
+        doNothing().when(responseObserver1).onNext(any());
+        doNothing().when(responseObserver1).setOnCancelHandler(any());
+
+        // Given
+        SubscribeRequest request = SubscribeRequest.newBuilder()
+                .addHeroIds("hero1")
+                .build();
+        notificationService.subscribeToUpdates(request, responseObserver1);
+
+        // When - Wait for cleanup interval
+        Thread.sleep(100);
+
+        // Then - Verify subscriber was removed
+        Hero hero = Hero.newBuilder().setId("hero1").setName("Test Hero").build();
+        notificationService.notifyHeroUpdate("hero1", hero, UpdateType.UPDATED);
+        verify(responseObserver1, timeout(1000).times(0)).onNext(any());
     }
 } 

@@ -15,6 +15,12 @@ import org.springframework.web.client.RestTemplate;
 @EnableAsync
 public class AppConfig implements AsyncConfigurer {
 
+    private final AsyncConfig asyncConfig;
+
+    public AppConfig(AsyncConfig asyncConfig) {
+        this.asyncConfig = asyncConfig;
+    }
+
     @Bean
     public RestTemplate restTemplate() {
         return new RestTemplate();
@@ -23,10 +29,10 @@ public class AppConfig implements AsyncConfigurer {
     @Override
     public Executor getAsyncExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(5);
-        executor.setMaxPoolSize(10);
-        executor.setQueueCapacity(100);
-        executor.setThreadNamePrefix("AsyncNotification-");
+        executor.setCorePoolSize(asyncConfig.getCorePoolSize());
+        executor.setMaxPoolSize(asyncConfig.getMaxPoolSize());
+        executor.setQueueCapacity(asyncConfig.getQueueCapacity());
+        executor.setThreadNamePrefix(asyncConfig.getThreadNamePrefix());
         executor.initialize();
         return executor;
     }

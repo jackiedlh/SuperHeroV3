@@ -2,28 +2,30 @@ package com.example.superheroproxy.service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.concurrent.RejectedExecutionException;
 
 import javax.annotation.PreDestroy;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.AsyncConfigurer;
 
+import com.example.superheroproxy.config.NotificationConfig;
 import com.example.superheroproxy.proto.Hero;
 import com.example.superheroproxy.proto.HeroUpdate;
 import com.example.superheroproxy.proto.NotificationServiceGrpc;
 import com.example.superheroproxy.proto.SubscribeRequest;
 import com.example.superheroproxy.proto.UpdateType;
-import com.example.superheroproxy.config.NotificationConfig;
 
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
@@ -48,10 +50,9 @@ public class NotificationService extends NotificationServiceGrpc.NotificationSer
     private static final Logger logger = LoggerFactory.getLogger(NotificationService.class);
     
     private final NotificationConfig config;
+    private final Executor asyncExecutor;
 
     // Thread pools for handling asynchronous operations
-    /** Thread pool for processing notifications asynchronously */
-    private final ExecutorService notificationExecutor;
     /** Scheduled executor for periodic cleanup tasks */
     private final ScheduledExecutorService cleanupExecutor;
     
@@ -87,9 +88,9 @@ public class NotificationService extends NotificationServiceGrpc.NotificationSer
     }
 
     @Autowired
-    public NotificationService(NotificationConfig config) {
+    public NotificationService(NotificationConfig config, AsyncConfigurer asyncConfigurer) {
         this.config = config;
-        this.notificationExecutor = Executors.newFixedThreadPool(config.getNotificationThreadPoolSize());
+        this.asyncExecutor = asyncConfigurer.getAsyncExecutor();
         this.cleanupExecutor = Executors.newSingleThreadScheduledExecutor();
         
         cleanupExecutor.scheduleAtFixedRate(
@@ -217,10 +218,16 @@ public class NotificationService extends NotificationServiceGrpc.NotificationSer
 
         // Process notifications asynchronously
         try {
-            notificationExecutor.submit(() -> {
+            asyncExecutor.execute(() -> {
                 try {
-                    notifySpecificSubscribers(heroId, update);
-                    notifyAllSubscribers(update);
+                    CompletableFuture<Void> specificSubscribersFuture = CompletableFuture.runAsync(() -> 
+                        notifySpecificSubscribers(heroId, update), asyncExecutor);
+                    
+                    CompletableFuture<Void> allSubscribersFuture = CompletableFuture.runAsync(() -> 
+                        notifyAllSubscribers(update), asyncExecutor);
+                    
+                    // Wait for both notification tasks to complete
+                    CompletableFuture.allOf(specificSubscribersFuture, allSubscribersFuture).join();
                 } catch (Exception e) {
                     logger.error("Error processing notifications", e);
                 }
@@ -352,12 +359,8 @@ public class NotificationService extends NotificationServiceGrpc.NotificationSer
     public void cleanup() {
         logger.info("Cleaning up NotificationService resources");
         isShuttingDown = true;
-        notificationExecutor.shutdown();
         cleanupExecutor.shutdown();
         try {
-            if (!notificationExecutor.awaitTermination(60, TimeUnit.SECONDS)) {
-                notificationExecutor.shutdownNow();
-            }
             if (!cleanupExecutor.awaitTermination(60, TimeUnit.SECONDS)) {
                 cleanupExecutor.shutdownNow();
             }
