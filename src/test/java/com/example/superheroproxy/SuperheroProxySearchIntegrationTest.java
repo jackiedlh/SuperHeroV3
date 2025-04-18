@@ -181,6 +181,8 @@ public class SuperheroProxySearchIntegrationTest {
             });
         }
 
+        Thread.sleep(1000);
+
         // Wait for all requests to complete
         assertTrue(latch.await(5, TimeUnit.SECONDS));
 

@@ -16,15 +16,12 @@ public class TestConfig {
         return new CaffeineCacheManager("superheroCache", "heroSearchCache");
     }
 
-    @Bean
-    public RestTemplate restTemplate() {
-        return new RestTemplate();
-    }
+
 
     @Bean
     public GrpcServerProperties grpcServerProperties() {
         GrpcServerProperties properties = new GrpcServerProperties();
-        properties.setPort(9090);
+        properties.setPort(9999);
         return properties;
     }
 } 

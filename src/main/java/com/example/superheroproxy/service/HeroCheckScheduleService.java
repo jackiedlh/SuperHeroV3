@@ -1,9 +1,14 @@
 package com.example.superheroproxy.service;
 
-import com.example.superheroproxy.config.CacheConfig;
-import com.example.superheroproxy.proto.Hero;
-import com.example.superheroproxy.proto.UpdateType;
-import com.example.superheroproxy.utils.SuperheroIdStore;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,14 +20,10 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentSkipListSet;
-import java.util.concurrent.TimeUnit;
-import java.util.regex.Pattern;
+import com.example.superheroproxy.config.CacheConfig;
+import com.example.superheroproxy.proto.Hero;
+import com.example.superheroproxy.proto.UpdateType;
+import com.example.superheroproxy.utils.SuperheroIdStore;
 
 /**
  * Service responsible for managing and updating the superhero data cache.
@@ -99,7 +100,7 @@ public class HeroCheckScheduleService {
      * 
      * The method runs at the interval specified by updateIntervalSeconds.
      */
-    @Scheduled(fixedRateString = "${superhero.cache.update.interval}", timeUnit = TimeUnit.SECONDS)
+    @Scheduled(fixedRateString = "${superhero.cache.update.interval}", initialDelayString = "${superhero.cache.update.initial-delay}", timeUnit = TimeUnit.SECONDS)
     public void checkForUpdates() {
         logger.info("Starting cache update check for {} monitored heroes", monitoredHeroes.size());
 

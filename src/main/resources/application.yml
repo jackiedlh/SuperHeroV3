@@ -29,6 +29,7 @@ superhero:
   cache:
     update:
       interval: 300
+      initial-delay: 300
 
 #  autoconfigure:
 #    exclude: org.springframework.boot.actuate.autoconfigure.web.server.ManagementContextAutoConfiguration
