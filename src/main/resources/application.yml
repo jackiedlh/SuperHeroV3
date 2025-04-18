@@ -40,22 +40,22 @@ grpc:
     security:
       enabled: false
     netty:
-      keep-alive-time: 30
-      keep-alive-timeout: 20
-      keep-alive-without-calls: true
-      max-connection-idle: 10
-      max-connection-age: 30
-      max-connection-age-grace: 5
-      permit-keep-alive-time: 5
-      permit-keep-alive-without-calls: true
+      keep-alive-time: 60
+      keep-alive-timeout: 30
+      keep-alive-without-calls: false
+      max-connection-idle: 120
+      max-connection-age: 300
+      max-connection-age-grace: 30
+      permit-keep-alive-time: 60
+      permit-keep-alive-without-calls: false
   client:
     channel:
       host: localhost
       port: 9091
       keep-alive:
-        time: 15  # Shorter for faster detection
-        timeout: 10  # Shorter timeout for clients
-        without-calls: true  # Don't keep idle connections
+        time: 60  # Increased to 60 seconds
+        timeout: 30  # Increased to 30 seconds
+        without-calls: false  # Disabled keepalive without calls
 
 # Logging Configuration (common for all profiles)
 logging:
