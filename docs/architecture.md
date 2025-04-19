@@ -3,31 +3,51 @@
 ## System Components
 
 ```mermaid
-graph TD
-    %% Web Layer
-    Web[Web Client] --> |HTTP| HeroController[Hero Controller]
-    Web --> |HTTP| NotificationController[Notification Controller]
-    Web --> |HTTP| CacheController[Cache Controller]
+graph TB
+    %% Client Layer at Top
+    Web[Web Client] & SuperheroGrpcClient[Superhero gRPC Client] & NotificationCmdClient[Notification Cmd Client]
     
     %% Controller Layer
-    HeroController --> |gRPC| SuperheroProxyService[Superhero Proxy Service]
-    NotificationController --> |gRPC| NotificationService[Notification Service]
-    CacheController --> |Cache| Cache[(Cache)]
+    HeroController[Hero Controller] & NotificationController[Notification Controller] & CacheController[Cache Controller]
     
     %% Service Layer
-    SuperheroProxyService --> |gRPC| SuperheroInnerService[Superhero Inner Service]
-    SuperheroProxyService --> |gRPC| ExternalApiService[External API Service]
-    SuperheroProxyService --> |Cache| Cache
+    SuperheroProxyService[Superhero Proxy Service]
+    NotificationService[Notification Service] & HeroCheckScheduleService[Hero Check Schedule Service]
+    SuperheroInnerService[Superhero Inner Service]
     
-    %% Client Layer
-    SuperheroInnerService --> |gRPC| SuperheroGrpcClient[Superhero gRPC Client]
-    NotificationService --> |gRPC| NotificationClient[Notification Client]
-    NotificationService --> |gRPC| NotificationCmdClient[Notification Cmd Client]
+    %% External Systems at Bottom
+    ExternalApiService[External API Service]
+    Cache[(Cache)]
+    ExternalAPI[External API]
+
+    %% Connections - Client to Controller
+    Web -- HTTP Request --> HeroController
+    Web -- HTTP Request --> NotificationController
+    Web -- HTTP Request --> CacheController
+    NotificationController -- SSE --> Web
+
+    %% Connections - gRPC Client to Service
+    SuperheroGrpcClient -- gRPC Request-Response --> SuperheroProxyService
+    NotificationCmdClient -- gRPC Request-Response --> NotificationService
+    NotificationService -- gRPC Response Stream --> NotificationCmdClient
+
+    %% Connections - Controller to Service
+    HeroController -- gRPC Request --> SuperheroProxyService
+    NotificationController -- gRPC Request --> NotificationService
+    NotificationService -- gRPC Response Stream --> NotificationController
     
-    %% External Systems
-    ExternalApiService --> |HTTP| ExternalAPI[External Superhero API]
-    HeroCheckScheduleService --> |Schedule| ExternalAPI
-    HeroCheckScheduleService --> |Events| NotificationService
+    %% Service Layer Connections
+    SuperheroProxyService -- gRPC --> SuperheroInnerService
+    SuperheroInnerService -- gRPC --> ExternalApiService
+    
+    %% Cache Connections
+    CacheController -- Cache --> Cache
+    SuperheroInnerService -- Cache --> Cache
+    HeroCheckScheduleService -- Cache --> Cache
+    
+    %% External Systems Connections
+    ExternalApiService -- HTTP --> ExternalAPI
+    HeroCheckScheduleService -- Local Call --> NotificationService
 ```
 
 ## Key Flows
@@ -35,27 +55,27 @@ graph TD
 ### 1. Search Hero Flow
 ```mermaid
 sequenceDiagram
-    participant Web as Web Client
-    participant HC as Hero Controller
+    participant SC as Superhero Client
     participant SPS as Superhero Proxy Service
-    participant Cache as Cache
+    participant SIS as Superhero Inner Service
     participant EAS as External API Service
     participant ExtAPI as External API
+    participant Cache as Cache
     
-    Web->>HC: HTTP Request
-    HC->>SPS: gRPC Call
-    SPS->>Cache: Check Cache
+    SC->>SPS: gRPC Search Request
+    SPS->>SIS: gRPC Call
+    SIS->>Cache: Check Cache
     alt Cache Hit
-        Cache-->>SPS: Return Cached Data
+        Cache-->>SIS: Return Cached Data
     else Cache Miss
-        SPS->>EAS: gRPC Call
+        SIS->>EAS: gRPC Call
         EAS->>ExtAPI: HTTP Request
         ExtAPI-->>EAS: Response
-        EAS-->>SPS: Processed Data
-        SPS->>Cache: Store Result
+        EAS-->>SIS: Processed Data
+        SIS->>Cache: Store Result
     end
-    SPS-->>HC: gRPC Response
-    HC-->>Web: HTTP Response
+    SIS-->>SPS: gRPC Response
+    SPS-->>SC: gRPC Response
 ```
 
 ### 2. Subscribe to Hero Changes Flow
@@ -71,40 +91,48 @@ sequenceDiagram
     NS->>NCC: gRPC Call
     NCC-->>NS: Subscription Confirmation
     NS-->>NC: gRPC Response
-    NC-->>Web: HTTP Response
+    
+    %% Response stream
+    loop Stream Updates
+        NS->>NC: gRPC Stream Update
+        NC->>Web: WebSocket/SSE Update
+    end
 ```
 
-### 3. Hero Change Notification Flow
+### 3. Hero Check Schedule Flow
 ```mermaid
 sequenceDiagram
     participant HCS as Hero Check Schedule Service
+    participant Cache as Cache
     participant NS as Notification Service
-    participant NC as Notification Client
+    participant NC as Notification Cmd Client
     participant Web as Web Client
     
-    HCS->>NS: Hero Change Event
-    NS->>NC: gRPC Notification
-    NC->>Web: WebSocket/SSE Update
+    HCS->>Cache: Check Hero Data
+    alt Hero Changed/New
+        HCS->>NS: Local Call
+        NS->>NC: gRPC Stream Update
+        NC->>Web: WebSocket/SSE Update
+    end
 ```
 
 ## Component Descriptions
 
 1. **Web Layer**
-   - `HeroController`: Handles HTTP requests for hero-related operations
-   - `NotificationController`: Manages notification subscriptions and delivery
+   - `HeroController`: Handles HTTP requests for hero-related operations and receives gRPC stream updates
+   - `NotificationController`: Manages notification subscriptions and receives gRPC stream updates
    - `CacheController`: Provides cache management
 
 2. **Service Layer**
-   - `SuperheroProxyService`: Main service orchestrating hero operations
-   - `SuperheroInnerService`: Internal service for hero data processing
-   - `NotificationService`: Manages notification subscriptions and delivery
+   - `SuperheroProxyService`: Main service orchestrating hero operations with bidirectional gRPC streaming
+   - `SuperheroInnerService`: Internal service for hero data processing with bidirectional gRPC streaming
+   - `NotificationService`: Manages notification subscriptions and delivery with bidirectional gRPC streaming
    - `ExternalApiService`: Handles communication with external superhero API
-   - `HeroCheckScheduleService`: Scheduled job for checking hero changes
+   - `HeroCheckScheduleService`: Scheduled job for checking hero changes, updates cache and notifies locally
 
 3. **Client Layer**
-   - `SuperheroGrpcClient`: gRPC client for internal superhero services
-   - `NotificationClient`: Client for notification delivery
-   - `NotificationCmdClient`: Client for notification command operations
+   - `SuperheroGrpcClient`: gRPC client for internal superhero services with bidirectional streaming
+   - `NotificationCmdClient`: Client for notification command operations with bidirectional streaming
 
 4. **External Systems**
    - External Superhero API: Source of superhero data
