@@ -2,7 +2,7 @@
 
 A Java Spring Boot application that provides a caching layer and mock real-time updates for the SuperHero API using gRPC and Server-Sent Events (SSE).
 
-## Architecture Overview
+## Code Structure Overview
 
 The application follows a layered architecture with clear separation of concerns:
 
