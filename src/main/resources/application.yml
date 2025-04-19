@@ -82,4 +82,28 @@ async:
   core-pool-size: 5
   max-pool-size: 10
   queue-capacity: 100
-  thread-name-prefix: "AsyncNotification-" 
+  thread-name-prefix: "AsyncNotification-"
+
+# Resilience4j Circuit Breaker Configuration
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        register-health-indicator: true
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        wait-duration-in-open-state: 5000
+        failure-rate-threshold: 50
+        record-exceptions:
+          - java.io.IOException
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+          - org.springframework.web.client.ResourceAccessException
+          - org.springframework.web.client.HttpServerErrorException
+          - org.springframework.web.client.HttpClientErrorException
+    instances:
+      externalApiService:
+        base-config: default 
