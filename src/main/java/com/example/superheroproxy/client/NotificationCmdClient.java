@@ -6,82 +6,103 @@ import com.example.superheroproxy.proto.SubscribeRequest;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 public class NotificationCmdClient {
+    private static final Logger logger = LoggerFactory.getLogger(NotificationCmdClient.class);
     private final ManagedChannel channel;
     private final NotificationServiceGrpc.NotificationServiceStub asyncStub;
     private StreamObserver<HeroUpdate> currentObserver;
     private CountDownLatch latch;
+    private boolean isActive = true;
 
     public NotificationCmdClient(String host, int port) {
         this.channel = ManagedChannelBuilder.forAddress(host, port)
                 .usePlaintext()
+                .keepAliveTime(30, TimeUnit.SECONDS)
+                .keepAliveTimeout(10, TimeUnit.SECONDS)
+                .keepAliveWithoutCalls(true)
                 .build();
         this.asyncStub = NotificationServiceGrpc.newStub(channel);
     }
 
     public void subscribeToUpdates(String... heroIds) {
-        System.out.println("Subscribing to updates for heroes: " + Arrays.toString(heroIds));
+        logger.info("Subscribing to updates for heroes: {}", Arrays.toString(heroIds));
         latch = new CountDownLatch(1);
         
-        SubscribeRequest request = SubscribeRequest.newBuilder()
-                .addAllHeroIds(Arrays.asList(heroIds))
-                .build();
+        SubscribeRequest.Builder requestBuilder = SubscribeRequest.newBuilder();
+        
+        if (heroIds.length == 0) {
+            // Subscribe to all heroes
+            requestBuilder.setSubscribeAll(true);
+            logger.info("Subscribing to updates for all heroes");
+        } else {
+            // Subscribe to specific heroes
+            requestBuilder.addAllHeroIds(Arrays.asList(heroIds));
+            logger.info("Subscribing to updates for specific heroes: {}", Arrays.toString(heroIds));
+        }
 
         currentObserver = new StreamObserver<HeroUpdate>() {
             @Override
             public void onNext(HeroUpdate update) {
-                System.out.println("\nReceived update for hero: " + update.getHero().getName());
-                System.out.println("Hero ID: " + update.getHeroId());
-                System.out.println("Power Stats: " + update.getHero().getPowerstats());
-                System.out.println("Biography: " + update.getHero().getBiography());
+                if (!isActive) {
+                    return;
+                }
+                logger.info("Received update for hero ID: {}", update.getHeroId());
+                logger.info("hero name: {}", update.getHero().getName());
+
+                logger.info("Stat {}", update.getUpdateType());
             }
 
             @Override
             public void onError(Throwable t) {
-                System.err.println("Error in notification stream: " + t.getMessage());
+                logger.error("Error in notification stream: {}", t.getMessage(), t);
+                isActive = false;
                 latch.countDown();
             }
 
             @Override
             public void onCompleted() {
-                System.out.println("Notification stream completed");
+                logger.info("Notification stream completed");
+                isActive = false;
                 latch.countDown();
             }
         };
 
-        asyncStub.subscribeToUpdates(request, currentObserver);
+        asyncStub.subscribeToUpdates(requestBuilder.build(), currentObserver);
     }
 
-    // Test normal disconnection
     public void disconnectNormally() {
         if (currentObserver != null) {
-            System.out.println("Disconnecting normally...");
+            logger.info("Disconnecting normally...");
+            isActive = false;
             currentObserver.onCompleted();
         }
     }
 
-    // Test error disconnection
     public void disconnectWithError() {
         if (currentObserver != null) {
-            System.out.println("Disconnecting with error...");
+            logger.info("Disconnecting with error...");
+            isActive = false;
             currentObserver.onError(new RuntimeException("Test error disconnection"));
         }
     }
 
-    // Test network disconnection simulation
     public void simulateNetworkFailure() {
         if (channel != null) {
-            System.out.println("Simulating network failure...");
+            logger.info("Simulating network failure...");
+            isActive = false;
             channel.shutdownNow();
         }
     }
 
     public void shutdown() throws InterruptedException {
+        isActive = false;
         channel.shutdown().awaitTermination(5, TimeUnit.SECONDS);
     }
 
@@ -97,28 +118,35 @@ public class NotificationCmdClient {
 
         // Add shutdown hook for graceful termination
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            System.out.println("\nShutting down client...");
+            logger.info("\nShutting down client...");
             try {
                 client.shutdown();
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                logger.error("Error during shutdown", e);
             }
         }));
 
         try {
-            // Subscribe to specific heroes (e.g., Spider-Man)
-            client.subscribeToUpdates("620");
+            if (args.length == 0) {
+                // Subscribe to all heroes if no arguments provided
+                logger.info("Subscribing to updates for all heroes...");
+                client.subscribeToUpdates();
+            } else {
+                // Subscribe to specific heroes provided as arguments
+                logger.info("Subscribing to updates for heroes: {}", Arrays.toString(args));
+                client.subscribeToUpdates(args);
+            }
 
             // Keep the client running indefinitely
-            System.out.println("Client running continuously. Press Ctrl+C to exit.");
+            logger.info("Client running continuously. Press Ctrl+C to exit.");
             
             // Wait indefinitely
-            while (true) {
+            while (client.isActive) {
                 Thread.sleep(1000);
             }
 
         } catch (InterruptedException e) {
-            System.out.println("Client interrupted. Shutting down...");
+            logger.info("Client interrupted. Shutting down...");
         } finally {
             client.shutdown();
         }
