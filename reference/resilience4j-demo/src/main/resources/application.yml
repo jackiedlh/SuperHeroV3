@@ -1,0 +1,101 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: resilience4j-demo
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,circuitbreakers,ratelimiters,retries,bulkheads
+  endpoint:
+    health:
+      show-details: always
+    circuitbreakers:
+      enabled: true
+    ratelimiters:
+      enabled: true
+    retries:
+      enabled: true
+    bulkheads:
+      enabled: true
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        register-health-indicator: true
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        wait-duration-in-open-state: 5000
+        failure-rate-threshold: 50
+        record-exceptions:
+          - java.io.IOException
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+          - org.springframework.web.client.ResourceAccessException
+    instances:
+      backendA:
+        base-config: default
+      backendB:
+        base-config: default
+        wait-duration-in-open-state: 10000
+
+  ratelimiter:
+    configs:
+      default:
+        limit-for-period: 10
+        limit-refresh-period: 1s
+        timeout-duration: 0
+        register-health-indicator: true
+    instances:
+      backendA:
+        base-config: default
+      backendB:
+        base-config: default
+        limit-for-period: 20
+
+  retry:
+    configs:
+      default:
+        max-attempts: 3
+        wait-duration: 500
+        retry-exceptions:
+          - java.io.IOException
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+    instances:
+      backendA:
+        base-config: default
+      backendB:
+        base-config: default
+        max-attempts: 5
+
+  bulkhead:
+    configs:
+      default:
+        max-concurrent-calls: 10
+        max-wait-duration: 0
+    instances:
+      backendA:
+        base-config: default
+      backendB:
+        base-config: default
+        max-concurrent-calls: 20
+
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 2s
+        cancel-running-future: true
+    instances:
+      backendA:
+        base-config: default
+      backendB:
+        base-config: default
+        timeout-duration: 3s 
