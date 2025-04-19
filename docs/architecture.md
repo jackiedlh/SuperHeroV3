@@ -12,12 +12,12 @@ graph TD
     %% Controller Layer
     HeroController --> |gRPC| SuperheroProxyService[Superhero Proxy Service]
     NotificationController --> |gRPC| NotificationService[Notification Service]
-    CacheController --> |gRPC| CacheStatService[Cache Stat Service]
+    CacheController --> |Cache| Cache[(Cache)]
     
     %% Service Layer
     SuperheroProxyService --> |gRPC| SuperheroInnerService[Superhero Inner Service]
     SuperheroProxyService --> |gRPC| ExternalApiService[External API Service]
-    SuperheroProxyService --> |Cache| Cache[(Cache)]
+    SuperheroProxyService --> |Cache| Cache
     
     %% Client Layer
     SuperheroInnerService --> |gRPC| SuperheroGrpcClient[Superhero gRPC Client]
@@ -92,14 +92,13 @@ sequenceDiagram
 1. **Web Layer**
    - `HeroController`: Handles HTTP requests for hero-related operations
    - `NotificationController`: Manages notification subscriptions and delivery
-   - `CacheController`: Provides cache statistics and management
+   - `CacheController`: Provides cache management
 
 2. **Service Layer**
    - `SuperheroProxyService`: Main service orchestrating hero operations
    - `SuperheroInnerService`: Internal service for hero data processing
    - `NotificationService`: Manages notification subscriptions and delivery
    - `ExternalApiService`: Handles communication with external superhero API
-   - `CacheStatService`: Provides cache statistics and monitoring
    - `HeroCheckScheduleService`: Scheduled job for checking hero changes
 
 3. **Client Layer**

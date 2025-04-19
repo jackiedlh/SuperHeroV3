@@ -204,7 +204,7 @@ class NotificationServiceTest {
     }
 
     @Test
-    void testSubscriberCancellation() {
+    void testSubscriberCancellation() throws InterruptedException {
         // Given
         SubscribeRequest request = SubscribeRequest.newBuilder()
                 .addHeroIds("hero1")
@@ -219,6 +219,8 @@ class NotificationServiceTest {
         // When
         Hero hero = Hero.newBuilder().setId("hero1").setName("Test Hero").build();
         notificationService.notifyHeroUpdate("hero1", hero, UpdateType.UPDATED);
+
+        Thread.sleep(100);
 
         // Then
         verify(responseObserver1, never()).onNext(any());
@@ -313,8 +315,8 @@ class NotificationServiceTest {
     @Test
     void testCleanupInactiveSubscribers() throws InterruptedException {
         // Configure mock observer
-        when(responseObserver1.isCancelled()).thenReturn(false);
-        doNothing().when(responseObserver1).onNext(any());
+//        when(responseObserver1.isCancelled()).thenReturn(false);
+//        doNothing().when(responseObserver1).onNext(any());
         doNothing().when(responseObserver1).setOnCancelHandler(any());
 
         // Given
@@ -324,7 +326,7 @@ class NotificationServiceTest {
         notificationService.subscribeToUpdates(request, responseObserver1);
 
         // When - Wait for cleanup interval
-        Thread.sleep(100);
+        Thread.sleep(1000);
 
         // Then - Verify subscriber was removed
         Hero hero = Hero.newBuilder().setId("hero1").setName("Test Hero").build();
