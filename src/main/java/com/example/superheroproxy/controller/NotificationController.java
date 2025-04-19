@@ -64,6 +64,8 @@ public class NotificationController {
                 .keepAliveTime(keepAliveTime, TimeUnit.SECONDS)
                 .keepAliveTimeout(keepAliveTimeout, TimeUnit.SECONDS)
                 .keepAliveWithoutCalls(keepAliveWithoutCalls)
+                .enableRetry()
+                .maxRetryAttempts(3)
                 .build();
         this.asyncStub = NotificationServiceGrpc.newStub(channel);
     }
