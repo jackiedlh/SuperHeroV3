@@ -58,18 +58,6 @@ grpc:
         timeout: 30  # Increased to 30 seconds
         without-calls: false  # Disabled keepalive without calls
 
-# Logging Configuration (common for all profiles)
-logging:
-  file:
-    name: logs/superhero-proxy.log
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
-    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
-  level:
-    root: INFO
-    com.example.superheroproxy: DEBUG
-    net.devh.boot.grpc: INFO
-
 # Notification Configuration
 notification:
   max-subscribers-per-hero: 1000
