@@ -20,31 +20,45 @@ public class NotificationCmdClient {
     private StreamObserver<HeroUpdate> currentObserver;
     private CountDownLatch latch;
     private boolean isActive = true;
+    private String[] currentHeroIds = new String[0];
+    private static final int RECONNECT_DELAY_MS = 5000; // 5 seconds
 
     public NotificationCmdClient(String host, int port) {
         this.channel = ManagedChannelBuilder.forAddress(host, port)
                 .usePlaintext()
                 .keepAliveTime(60, TimeUnit.SECONDS)
                 .keepAliveTimeout(30, TimeUnit.SECONDS)
-                .keepAliveWithoutCalls(false)
+                .keepAliveWithoutCalls(true)
                 .enableRetry()
                 .maxRetryAttempts(3)
                 .build();
         this.asyncStub = NotificationServiceGrpc.newStub(channel);
     }
 
+    private void reconnect() {
+        if (!isActive) return;
+        
+        logger.info("Attempting to reconnect in {} seconds...", RECONNECT_DELAY_MS / 1000);
+        try {
+            Thread.sleep(RECONNECT_DELAY_MS);
+            subscribeToUpdates(currentHeroIds);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            logger.warn("Reconnection interrupted", e);
+        }
+    }
+
     public void subscribeToUpdates(String... heroIds) {
         logger.info("Subscribing to updates for heroes: {}", Arrays.toString(heroIds));
+        currentHeroIds = heroIds;
         latch = new CountDownLatch(1);
         
         SubscribeRequest.Builder requestBuilder = SubscribeRequest.newBuilder();
         
         if (heroIds.length == 0) {
-            // Subscribe to all heroes
             requestBuilder.setSubscribeAll(true);
             logger.info("Subscribing to updates for all heroes");
         } else {
-            // Subscribe to specific heroes
             requestBuilder.addAllHeroIds(Arrays.asList(heroIds));
             logger.info("Subscribing to updates for specific heroes: {}", Arrays.toString(heroIds));
         }
@@ -57,22 +71,27 @@ public class NotificationCmdClient {
                 }
                 logger.info("Received update for hero ID: {}", update.getHeroId());
                 logger.info("hero name: {}", update.getHero().getName());
-
                 logger.info("Stat {}", update.getUpdateType());
             }
 
             @Override
             public void onError(Throwable t) {
                 logger.error("Error in notification stream: {}", t.getMessage(), t);
-                isActive = false;
-                latch.countDown();
+                if (t instanceof io.grpc.StatusRuntimeException) {
+                    io.grpc.StatusRuntimeException e = (io.grpc.StatusRuntimeException) t;
+                    if (e.getStatus().getCode() == io.grpc.Status.Code.UNAVAILABLE) {
+                        logger.warn("Server is unavailable, attempting to reconnect...");
+                        reconnect();
+                    }
+                }
+                // Don't set isActive to false or count down latch here
             }
 
             @Override
             public void onCompleted() {
                 logger.info("Notification stream completed");
-                isActive = false;
-                latch.countDown();
+                // Don't set isActive to false or count down latch here
+                reconnect();
             }
         };
 
@@ -105,6 +124,9 @@ public class NotificationCmdClient {
 
     public void shutdown() throws InterruptedException {
         isActive = false;
+        if (currentObserver != null) {
+            currentObserver.onCompleted();
+        }
         channel.shutdown().awaitTermination(5, TimeUnit.SECONDS);
     }
 
