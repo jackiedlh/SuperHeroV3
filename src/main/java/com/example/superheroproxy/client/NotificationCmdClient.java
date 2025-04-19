@@ -24,9 +24,9 @@ public class NotificationCmdClient {
     public NotificationCmdClient(String host, int port) {
         this.channel = ManagedChannelBuilder.forAddress(host, port)
                 .usePlaintext()
-                .keepAliveTime(30, TimeUnit.SECONDS)
-                .keepAliveTimeout(10, TimeUnit.SECONDS)
-                .keepAliveWithoutCalls(true)
+                .keepAliveTime(60, TimeUnit.SECONDS)
+                .keepAliveTimeout(30, TimeUnit.SECONDS)
+                .keepAliveWithoutCalls(false)
                 .build();
         this.asyncStub = NotificationServiceGrpc.newStub(channel);
     }
