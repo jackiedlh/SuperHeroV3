@@ -15,10 +15,12 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Controller that handles real-time notifications using Server-Sent Events (SSE) and gRPC.
@@ -36,7 +38,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class NotificationController {
     private static final Logger logger = LoggerFactory.getLogger(NotificationController.class);
     /** Map to store active SSE emitters for each subscription (hero ID or "all") */
-    private final Map<String, SseEmitter> emitters = new ConcurrentHashMap<>();
+    private final Map<String, List<SseEmitter>> emitters = new ConcurrentHashMap<>();
     
     /** gRPC channel for communication with the notification service */
     private final ManagedChannel channel;
@@ -115,7 +117,9 @@ public class NotificationController {
     private SseEmitter createSubscription(String subscriptionId, SubscribeRequest request) {
         // Create a new SSE emitter with a 5-minute timeout
         SseEmitter emitter = new SseEmitter(300000L);
-        emitters.put(subscriptionId, emitter);
+        
+        // Add the emitter to the list for this subscription ID
+        emitters.computeIfAbsent(subscriptionId, k -> new CopyOnWriteArrayList<>()).add(emitter);
         
         // Flags to track the connection state
         AtomicBoolean isActive = new AtomicBoolean(true);
@@ -226,7 +230,7 @@ public class NotificationController {
         emitter.onCompletion(() -> {
             isActive.set(false);
             isCompleted.set(true);
-            emitters.remove(subscriptionId);
+            removeEmitter(subscriptionId, emitter);
             pingThread.interrupt();
         });
 
@@ -234,7 +238,7 @@ public class NotificationController {
         emitter.onTimeout(() -> {
             isActive.set(false);
             isCompleted.set(true);
-            emitters.remove(subscriptionId);
+            removeEmitter(subscriptionId, emitter);
             pingThread.interrupt();
             emitter.complete();
         });
@@ -286,7 +290,7 @@ public class NotificationController {
             private void handleError(Throwable t) {
                 isActive.set(false);
                 isCompleted.set(true);
-                emitters.remove(subscriptionId);
+                removeEmitter(subscriptionId, emitter);
                 pingThread.interrupt();
                 if (t instanceof Exception) {
                     emitter.completeWithError((Exception) t);
@@ -298,15 +302,33 @@ public class NotificationController {
     }
 
     /**
+     * Removes a specific emitter from the subscription list.
+     * If the list becomes empty after removal, the subscription ID is removed from the map.
+     *
+     * @param subscriptionId The ID of the subscription
+     * @param emitter The emitter to remove
+     */
+    private void removeEmitter(String subscriptionId, SseEmitter emitter) {
+        List<SseEmitter> emitterList = emitters.get(subscriptionId);
+        if (emitterList != null) {
+            emitterList.remove(emitter);
+            if (emitterList.isEmpty()) {
+                emitters.remove(subscriptionId);
+            }
+        }
+    }
+
+    /**
      * Cleans up resources when a subscription is manually unsubscribed.
+     * Removes all emitters for the given subscription ID.
      *
      * @param subscriptionId The ID of the subscription to clean up
      */
     private void cleanupSubscription(String subscriptionId) {
         logger.info(subscriptionId + " cleanupSubscription");
-        SseEmitter emitter = emitters.remove(subscriptionId);
-        if (emitter != null) {
-            emitter.complete();
+        List<SseEmitter> emitterList = emitters.remove(subscriptionId);
+        if (emitterList != null) {
+            emitterList.forEach(SseEmitter::complete);
         }
     }
 } 
