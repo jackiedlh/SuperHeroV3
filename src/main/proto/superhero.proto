@@ -30,12 +30,12 @@ message SearchResponse {
 message Hero {
   string id = 1;
   string name = 2;
-  PowerStats powerstats = 3;
-  Biography biography = 4;
-  Appearance appearance = 5;
-  Work work = 6;
-  Connections connections = 7;
-  Image image = 8;
+  optional PowerStats powerstats = 3;
+  optional Biography biography = 4;
+  optional Appearance appearance = 5;
+  optional Work work = 6;
+  optional Connections connections = 7;
+  optional Image image = 8;
 }
 
 message PowerStats {
