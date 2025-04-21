@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket-gRPC Chat Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        #messages {
+            height: 300px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 10px;
+            overflow-y: auto;
+        }
+        #messageInput {
+            width: 70%;
+            padding: 5px;
+        }
+        #sendButton {
+            padding: 5px 15px;
+        }
+    </style>
+</head>
+<body>
+    <h1>WebSocket-gRPC Chat Demo</h1>
+    <div id="messages"></div>
+    <input type="text" id="messageInput" placeholder="Type your message...">
+    <button id="sendButton">Send</button>
+
+    <script>
+        const messagesDiv = document.getElementById('messages');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        
+        const ws = new WebSocket('ws://' + window.location.host + '/chat');
+        
+        ws.onopen = () => {
+            appendMessage('System', 'Connected to server');
+        };
+        
+        ws.onmessage = (event) => {
+            const message = JSON.parse(event.data);
+            appendMessage(message.sender, message.content);
+        };
+        
+        ws.onclose = () => {
+            appendMessage('System', 'Disconnected from server');
+        };
+        
+        sendButton.onclick = () => {
+            const content = messageInput.value.trim();
+            if (content) {
+                const message = {
+                    sender: 'User',
+                    content: content,
+                    timestamp: Date.now()
+                };
+                ws.send(JSON.stringify(message));
+                messageInput.value = '';
+            }
+        };
+        
+        messageInput.onkeypress = (e) => {
+            if (e.key === 'Enter') {
+                sendButton.click();
+            }
+        };
+        
+        function appendMessage(sender, content) {
+            const messageElement = document.createElement('div');
+            messageElement.innerHTML = `<strong>${sender}:</strong> ${content}`;
+            messagesDiv.appendChild(messageElement);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+    </script>
+</body>
+</html> 
