@@ -2,6 +2,7 @@ package com.example.superheroproxy.service;
 
 import com.example.superheroproxy.config.AsyncConfig;
 import com.example.superheroproxy.config.NotificationConfig;
+import com.example.superheroproxy.config.AppConfig;
 import com.example.superheroproxy.proto.Hero;
 import com.example.superheroproxy.proto.HeroUpdate;
 import com.example.superheroproxy.proto.SubscribeRequest;
@@ -18,7 +19,6 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
-import org.springframework.scheduling.annotation.AsyncConfigurer;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -26,7 +26,6 @@ import static org.mockito.Mockito.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.Executor;
 
 @ExtendWith(MockitoExtension.class)
 class NotificationServiceTest {
@@ -50,7 +49,6 @@ class NotificationServiceTest {
     void setUp() {
         MockitoAnnotations.openMocks(this);
         config = new NotificationConfig();
-        AsyncConfig asyncConfig = new AsyncConfig();
         
         // Configure test executor
         taskExecutor = new ThreadPoolTaskExecutor();
@@ -60,15 +58,15 @@ class NotificationServiceTest {
         taskExecutor.setThreadNamePrefix("Test-Async-");
         taskExecutor.initialize();
 
-        // Create a custom AsyncConfigurer implementation
-        AsyncConfigurer asyncConfigurer = new AsyncConfigurer() {
-            @Override
-            public Executor getAsyncExecutor() {
-                return taskExecutor;
-            }
-        };
+        // Create AppConfig with AsyncConfig
+        AsyncConfig asyncConfig = new AsyncConfig();
+        asyncConfig.setCorePoolSize(2);
+        asyncConfig.setMaxPoolSize(4);
+        asyncConfig.setQueueCapacity(50);
+        asyncConfig.setThreadNamePrefix("Test-Async-");
+        AppConfig appConfig = new AppConfig(asyncConfig);
 
-        notificationService = new NotificationService(config, asyncConfigurer);
+        notificationService = new NotificationService(config, appConfig);
     }
 
     @AfterEach

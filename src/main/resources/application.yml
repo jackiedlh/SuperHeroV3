@@ -64,7 +64,7 @@ notification:
   max-total-subscribers: 10000
   cleanup-interval-minutes: 5
   subscriber-timeout-minutes: 30
-  notification-thread-pool-size: 10
+  notification-thread-pool-size: 20
 
 async:
   core-pool-size: 5

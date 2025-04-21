@@ -15,6 +15,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import javax.annotation.PreDestroy;
 
+import com.example.superheroproxy.config.AppConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,6 +52,7 @@ public class NotificationService extends NotificationServiceGrpc.NotificationSer
     
     private final NotificationConfig config;
     private final Executor asyncExecutor;
+    private final Executor fallbackExecutor;
 
     // Thread pools for handling asynchronous operations
     /** Scheduled executor for periodic cleanup tasks */
@@ -88,9 +90,18 @@ public class NotificationService extends NotificationServiceGrpc.NotificationSer
     }
 
     @Autowired
-    public NotificationService(NotificationConfig config, AsyncConfigurer asyncConfigurer) {
+    public NotificationService(NotificationConfig config, AppConfig asyncConfigurer) {
         this.config = config;
         this.asyncExecutor = asyncConfigurer.getAsyncExecutor();
+        // Create a fallback executor with a larger queue size
+        this.fallbackExecutor = Executors.newFixedThreadPool(
+            config.getNotificationThreadPoolSize(),
+            r -> {
+                Thread t = new Thread(r);
+                t.setName("Notification-Fallback-" + t.getId());
+                return t;
+            }
+        );
         this.cleanupExecutor = Executors.newSingleThreadScheduledExecutor();
         
         cleanupExecutor.scheduleAtFixedRate(
@@ -216,7 +227,7 @@ public class NotificationService extends NotificationServiceGrpc.NotificationSer
                 .setUpdateType(updateType)
                 .build();
 
-        // Process notifications asynchronously
+        // Process notifications asynchronously with fallback
         try {
             asyncExecutor.execute(() -> {
                 try {
@@ -233,7 +244,16 @@ public class NotificationService extends NotificationServiceGrpc.NotificationSer
                 }
             });
         } catch (RejectedExecutionException e) {
-            logger.warn("Failed to submit notification task for hero: {} - service may be shutting down", heroId);
+            logger.warn("Primary executor rejected task, falling back to secondary executor for hero: {}", heroId);
+            // Fallback to secondary executor
+            fallbackExecutor.execute(() -> {
+                try {
+                    notifySpecificSubscribers(heroId, update);
+                    notifyAllSubscribers(update);
+                } catch (Exception ex) {
+                    logger.error("Error processing notifications in fallback executor", ex);
+                }
+            });
         }
     }
 
