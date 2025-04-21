@@ -42,7 +42,6 @@ public class SuperheroInnerService {
     private final ConcurrentHashMap<String, AtomicInteger> heroCounters;
     private final ConcurrentHashMap<String, Set<String>> searchCache;
     private final ConcurrentHashMap<String, Hero> heroCache;
-    private final BloomFilter<String> nonExistentHeroFilter;
 
     /**
      * Constructs a new SuperheroInnerService with the required dependencies.
@@ -65,12 +64,6 @@ public class SuperheroInnerService {
         this.searchCache = new ConcurrentHashMap<>();
         this.heroCache = new ConcurrentHashMap<>();
         
-        // Initialize bloom filter with expected 1000 items and 1% false positive rate
-        this.nonExistentHeroFilter = BloomFilter.create(
-            Funnels.stringFunnel(StandardCharsets.UTF_8),
-            1000,
-            0.01
-        );
     }
 
     /**
@@ -85,12 +78,14 @@ public class SuperheroInnerService {
     public Set<String> searchHeroIds(String name) {
         String normalizedName = name.toLowerCase();
         
-        // Check bloom filter first - if it says the name doesn't exist, return empty set
-        if (nonExistentHeroFilter.mightContain(normalizedName)) {
-            logger.debug("Bloom filter indicates hero name {} may not exist", normalizedName);
-            return Set.of();
-        }
+
+        // If the name might exist (or is a false positive), perform the search
+        Set<String> result = performSearch(normalizedName);
         
+        return result;
+    }
+
+    private Set<String> performSearch(String normalizedName) {
         AtomicInteger counter = searchCounters.computeIfAbsent(normalizedName, k -> new AtomicInteger(0));
         counter.incrementAndGet();
         
@@ -98,17 +93,9 @@ public class SuperheroInnerService {
             return searchCache.computeIfAbsent(normalizedName, key -> {
                 try {
                     SearchResponse searchResponse = externalAPIService.searchHero(key);
-                    Set<String> result = searchResponse.getResultsList().stream()
+                    return searchResponse.getResultsList().stream()
                             .map(e -> e.getId())
                             .collect(Collectors.toSet());
-                    
-                    // If no results found, add to bloom filter
-                    if (result.isEmpty()) {
-                        nonExistentHeroFilter.put(key);
-                        logger.debug("Added non-existent hero name {} to bloom filter", key);
-                    }
-                    
-                    return result;
                 } catch (Exception e) {
                     logger.error("Error searching for hero: {}", key, e);
                     return null; // Will be cached as null
