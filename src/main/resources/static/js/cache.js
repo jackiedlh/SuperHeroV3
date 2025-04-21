@@ -86,6 +86,7 @@ function showHeroDetails(heroId) {
                         </td>
                     </tr>
                 </table>
+                <button onclick="deleteHeroFromCache('${hero.id}')" class="delete-button">Delete from Cache</button>
             `;
         })
         .catch(error => {
@@ -178,6 +179,28 @@ function showSubscribedHeroDetails(heroId) {
         });
 }
 
+// Deletes a hero from the cache
+function deleteHeroFromCache(heroId) {
+    if (!confirm('Are you sure you want to delete this hero from the cache?')) {
+        return;
+    }
+
+    fetch(`${baseUrl}/api/cache/${heroId}`, {
+        method: 'DELETE'
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to delete hero from cache');
+            }
+            addUpdate(`Hero ${heroId} deleted from cache`);
+            showAllCacheKeys(); // Refresh the cache keys list
+            document.getElementById('heroDetails').innerHTML = '<p>Hero deleted from cache</p>';
+        })
+        .catch(error => {
+            addUpdate('Error deleting hero from cache: ' + error.message, true);
+        });
+}
+
 // Enables editing of a subscribed hero's name
 function editSubscribedHeroName(heroId) {
     const heroNameElement = document.getElementById('subscribedHeroName');
@@ -225,4 +248,5 @@ function cancelSubscribedEdit() {
 }
 
 // Update cache stats periodically
-setInterval(updateCacheStats, 5000); // Update every 5 seconds 
+setInterval(updateCacheStats, 5000); // Update every 5 seconds
+

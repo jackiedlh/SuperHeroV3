@@ -131,7 +131,7 @@ public class SuperheroInnerService {
      * @return The Hero object containing detailed information
      * @throws RuntimeException if there's an error retrieving the hero data
      */
-    @Cacheable(value = CacheConfig.SUPERHERO_CACHE, key = "#id")
+    @Cacheable(value = CacheConfig.SUPERHERO_CACHE, key = "#id" /*, unless = "#result==null || #result.getId().isEmpty()"*/)
     public Hero getHero(String id) {
         AtomicInteger counter = heroCounters.computeIfAbsent(id, k -> new AtomicInteger(0));
         counter.incrementAndGet();

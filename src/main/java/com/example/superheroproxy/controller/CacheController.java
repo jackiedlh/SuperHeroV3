@@ -105,6 +105,23 @@ public class CacheController {
     }
 
     /**
+     * Deletes a hero from the cache by ID.
+     *
+     * @param heroId The ID of the hero to delete
+     * @return ResponseEntity with 200 if successful, 404 if cache or hero not found
+     */
+    @DeleteMapping("/{heroId}")
+    public ResponseEntity<Void> deleteHeroFromCache(@PathVariable String heroId) {
+        Cache cache = cacheManager.getCache("superheroCache");
+        if (cache == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        cache.evict(heroId);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
      * Retrieves statistics about the superhero cache.
      *
      * @return ResponseEntity containing cache statistics or 404 if cache is not found
@@ -128,4 +145,6 @@ public class CacheController {
 
         return ResponseEntity.ok(stats);
     }
+
+
 }

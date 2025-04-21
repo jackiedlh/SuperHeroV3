@@ -78,7 +78,7 @@ public class SuperheroProxyService extends SuperheroServiceGrpc.SuperheroService
             }
 
             // Get all matching IDs first
-            Set<String> allIds = superheroInnerService.searchHeroIds(request.getName());
+            Set<String> allIds = superheroInnerService.searchHeroIds(request.getName()); //count all + current page ID
             int totalCount = allIds.size();
             
             // Calculate pagination

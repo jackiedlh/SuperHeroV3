@@ -23,6 +23,7 @@ async function searchHero(page = 1) {
     try {
         const response = await fetch(`${baseUrl}/api/hero/search?name=${encodeURIComponent(searchTerm)}&page=${page}&pageSize=${pageSize}`);
         if (!response.ok) {
+            console.log(response);
             throw new Error('Search failed');
         }
         
