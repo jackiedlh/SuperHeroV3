@@ -9,6 +9,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
+
+import com.example.superheroproxy.config.AppConfig;
+import com.example.superheroproxy.config.AsyncConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,6 +42,8 @@ public class SuperheroProxyServiceTest {
 
     private CacheManager cacheManager;
 
+    private AppConfig appConfig;
+
     @BeforeEach
     public void setup() {
         // Initialize cache manager with required caches
@@ -51,6 +56,14 @@ public class SuperheroProxyServiceTest {
                 cache.clear();
             }
         });
+
+        // Create AppConfig with AsyncConfig
+        AsyncConfig asyncConfig = new AsyncConfig();
+        asyncConfig.setCorePoolSize(2);
+        asyncConfig.setMaxPoolSize(4);
+        asyncConfig.setQueueCapacity(50);
+        asyncConfig.setThreadNamePrefix("Test-Async-");
+        appConfig = new AppConfig(asyncConfig);
 
         // Reset mock between tests
         reset(superheroInnerService);
@@ -97,7 +110,7 @@ public class SuperheroProxyServiceTest {
     public void testSuccessfulSearch() {
         // Create a rate limiter that allows 10 requests per second
         RateLimiter rateLimiter = RateLimiter.create(10.0);
-        SuperheroProxyService superheroProxyService = new SuperheroProxyService(superheroInnerService, rateLimiter);
+        SuperheroProxyService superheroProxyService = new SuperheroProxyService(superheroInnerService, rateLimiter,appConfig);
 
         // Setup test data
         String heroName = "Batman";
@@ -137,7 +150,7 @@ public class SuperheroProxyServiceTest {
     public void testErrorHandling() {
         // Create a rate limiter that allows 10 requests per second
         RateLimiter rateLimiter = RateLimiter.create(10.0);
-        SuperheroProxyService superheroProxyService = new SuperheroProxyService(superheroInnerService, rateLimiter);
+        SuperheroProxyService superheroProxyService = new SuperheroProxyService(superheroInnerService, rateLimiter,appConfig);
 
         // Setup test data
         String heroName = "ErrorHero";
@@ -169,7 +182,7 @@ public class SuperheroProxyServiceTest {
     public void testPagination() throws InterruptedException {
         // Create a rate limiter that allows 100 requests per second for pagination test
         RateLimiter rateLimiter = RateLimiter.create(100.0);
-        SuperheroProxyService superheroProxyService = new SuperheroProxyService(superheroInnerService, rateLimiter);
+        SuperheroProxyService superheroProxyService = new SuperheroProxyService(superheroInnerService, rateLimiter,appConfig);
 
         // Setup test data - create 5 heroes
         Set<String> heroIds = new HashSet<>();
@@ -290,7 +303,7 @@ public class SuperheroProxyServiceTest {
     public void testRateLimiting() throws InterruptedException {
         // Create a rate limiter that allows only 1 request per second with no burst
         RateLimiter strictRateLimiter = RateLimiter.create(1.0);
-        SuperheroProxyService strictService = new SuperheroProxyService(superheroInnerService, strictRateLimiter);
+        SuperheroProxyService strictService = new SuperheroProxyService(superheroInnerService, strictRateLimiter,appConfig);
 
         // Setup mock to return a hero ID
         String heroId = "123";

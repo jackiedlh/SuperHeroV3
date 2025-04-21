@@ -67,8 +67,8 @@ notification:
   notification-thread-pool-size: 20
 
 async:
-  core-pool-size: 5
-  max-pool-size: 10
+  core-pool-size: 10
+  max-pool-size: 30
   queue-capacity: 100
   thread-name-prefix: "AsyncNotification-"
 

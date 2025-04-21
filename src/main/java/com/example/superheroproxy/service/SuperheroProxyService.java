@@ -2,10 +2,12 @@ package com.example.superheroproxy.service;
 
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
+import com.example.superheroproxy.config.AppConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,7 +41,8 @@ public class SuperheroProxyService extends SuperheroServiceGrpc.SuperheroService
 
     private final SuperheroInnerService superheroInnerService;
     private final RateLimiter rateLimiter;
-    private final ExecutorService executorService;
+    private final Executor executor;
+    private final AppConfig appConfig;
 
     /**
      * Constructs a new SuperheroProxyService with the specified inner service and rate limiter.
@@ -48,10 +51,12 @@ public class SuperheroProxyService extends SuperheroServiceGrpc.SuperheroService
      * @param rateLimiter The rate limiter for controlling the rate of requests
      */
     @Autowired
-    public SuperheroProxyService(SuperheroInnerService superheroInnerService, RateLimiter rateLimiter) {
+    public SuperheroProxyService(SuperheroInnerService superheroInnerService, RateLimiter rateLimiter, AppConfig appConfig) {
         this.superheroInnerService = superheroInnerService;
         this.rateLimiter = rateLimiter;
-        this.executorService = Executors.newFixedThreadPool(MAX_THREADS);
+        this.appConfig = appConfig;
+//        this.executorService = Executors.newFixedThreadPool(MAX_THREADS);
+        this.executor = appConfig.getAsyncExecutor();
     }
 
     /**
@@ -112,7 +117,7 @@ public class SuperheroProxyService extends SuperheroServiceGrpc.SuperheroService
             var heroFutures = pageIds.stream()
                 .map(id -> CompletableFuture.supplyAsync(
                     () -> superheroInnerService.getHero(id),
-                    executorService
+                    executor
                 ))
                 .collect(Collectors.toList());
 
