@@ -1,92 +1,89 @@
 # Common configuration for all profiles
 spring:
   profiles:
-    active: dev
+    active: dev  # Active Spring profile (dev, prod, etc.)
   cache:
-    type: caffeine
+    type: caffeine  # Cache implementation type
     caffeine:
-      spec: maximumSize=1000,expireAfterWrite=3000s
+      spec: maximumSize=1000,expireAfterWrite=3000s  # Cache size limit and expiration time
   application:
-    name: superhero-proxy
+    name: superhero-proxy  # Application name for identification
 
 # Rate Limiting Configuration
 rate:
   limit:
-    permits-per-second: 10  # Number of requests allowed per second
+    permits-per-second: 10  # Maximum number of requests allowed per second to prevent overload
 
 # Restful Server Configuration
 server:
-  port: 8080  # HTTP port
+  port: 8080  # HTTP port for REST API endpoints
 
 # SuperHero API Configuration
 superhero:
   api:
-    url: https://superheroapi.com/api
-    token: 1b3bc65ad40627f75f8edcdfbc67831d
-
+    url: https://superheroapi.com/api  # Base URL for SuperHero API
+    token: 1b3bc65ad40627f75f8edcdfbc67831d  # API authentication token
     ids:
-      url: https://superheroapi.com/ids.html
+      url: https://superheroapi.com/ids.html  # URL for hero ID reference
   cache:
     update:
-      interval: 300
-      initial-delay: 300
-
-#  autoconfigure:
-#    exclude: org.springframework.boot.actuate.autoconfigure.web.server.ManagementContextAutoConfiguration
+      interval: 300  # Cache refresh interval in seconds
+      initial-delay: 300  # Initial delay before first cache refresh
 
 # gRPC Server Configuration
 grpc:
   server:
-    port: 9091
+    port: 9091  # Port for gRPC server
     security:
-      enabled: false
+      enabled: false  # Whether to enable SSL/TLS security
     netty:
-      keep-alive-time: 60
-      keep-alive-timeout: 30
-      keep-alive-without-calls: false
-      max-connection-idle: 120
-      max-connection-age: 300
-      max-connection-age-grace: 30
-      permit-keep-alive-time: 60
-      permit-keep-alive-without-calls: false
+      keep-alive-time: 60  # Time in seconds to keep idle connections alive
+      keep-alive-timeout: 30  # Timeout for keep-alive probes
+      keep-alive-without-calls: false  # Whether to keep connections alive without active calls
+      max-connection-idle: 120  # Maximum time in seconds a connection can be idle
+      max-connection-age: 300  # Maximum lifetime of a connection in seconds
+      max-connection-age-grace: 30  # Grace period for closing aged connections
+      permit-keep-alive-time: 60  # Time in seconds to permit keep-alive requests
+      permit-keep-alive-without-calls: false  # Whether to permit keep-alive without active calls
   client:
     channel:
-      host: localhost
-      port: 9091
+      host: localhost  # gRPC server host
+      port: 9091  # gRPC server port
       keep-alive:
-        time: 60  # Increased to 60 seconds
-        timeout: 30  # Increased to 30 seconds
-        without-calls: false  # Disabled keepalive without calls
+        time: 60  # Client-side keep-alive time in seconds
+        timeout: 30  # Client-side keep-alive timeout in seconds
+        without-calls: false  # Whether to maintain keep-alive without active calls
 
 # Notification Configuration
 notification:
-  max-subscribers-per-hero: 1000
-  max-total-subscribers: 10000
-  cleanup-interval-minutes: 5
-  subscriber-timeout-minutes: 30
-  notification-thread-pool-size: 20
+  max-subscribers-per-hero: 1000  # Maximum number of subscribers per superhero
+  max-total-subscribers: 10000  # Maximum total number of subscribers across all heroes
+  cleanup-interval-minutes: 5  # Interval for cleaning up inactive subscribers
+  subscriber-timeout-minutes: 30  # Time before a subscriber is considered inactive
+  notification-thread-pool-size: 20  # Number of threads for processing notifications
 
+# Async Task Configuration
 async:
-  core-pool-size: 10
-  max-pool-size: 30
-  queue-capacity: 100
-  thread-name-prefix: "AsyncNotification-"
+  core-pool-size: 10  # Minimum number of threads in the thread pool
+  max-pool-size: 30  # Maximum number of threads in the thread pool
+  queue-capacity: 100  # Maximum number of tasks that can be queued
+  thread-name-prefix: "AsyncNotification-"  # Prefix for async thread names
 
 # Resilience4j Circuit Breaker Configuration
 resilience4j:
   circuitbreaker:
     configs:
       default:
-        register-health-indicator: true
-        sliding-window-type: COUNT_BASED
-        sliding-window-size: 10
-        minimum-number-of-calls: 5
-        permitted-number-of-calls-in-half-open-state: 3
-        automatic-transition-from-open-to-half-open-enabled: true
-        wait-duration-in-open-state: 5000
-        failure-rate-threshold: 50
+        register-health-indicator: true  # Whether to register health metrics
+        sliding-window-type: COUNT_BASED  # Type of sliding window for failure counting
+        sliding-window-size: 10  # Number of calls to track in the sliding window
+        minimum-number-of-calls: 5  # Minimum calls before circuit breaker can trip
+        permitted-number-of-calls-in-half-open-state: 3  # Number of calls allowed in half-open state
+        automatic-transition-from-open-to-half-open-enabled: true  # Auto transition from open to half-open
+        wait-duration-in-open-state: 5000  # Time in milliseconds to wait in open state
+        failure-rate-threshold: 50  # Percentage of failures that will trip the circuit
         record-exceptions:
-          - java.io.IOException
+          - java.io.IOException  # Exceptions that count as failures
           - java.net.ConnectException
           - java.net.SocketTimeoutException
           - org.springframework.web.client.ResourceAccessException
@@ -94,4 +91,4 @@ resilience4j:
           - org.springframework.web.client.HttpClientErrorException
     instances:
       externalApiService:
-        base-config: default 
+        base-config: default  # Use default circuit breaker configuration
