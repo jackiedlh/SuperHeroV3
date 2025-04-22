@@ -12,4 +12,4 @@ grpc:
 # SuperHero API Configuration
 superhero:
   api:
-    token: ${SUPERHERO_API_TOKEN}  # Use environment variable in production 
+    token: 1b3bc65ad40627f75f8edcdfbc67831d  # Use environment variable in production 
