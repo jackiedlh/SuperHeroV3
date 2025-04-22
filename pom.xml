@@ -19,7 +19,8 @@
         <java.version>17</java.version>
         <grpc.version>1.61.0</grpc.version>
         <protobuf.version>3.25.2</protobuf.version>
-        <os.detected.classifier>osx-x86_64</os.detected.classifier>
+        <os.detected.classifier>linux-x86_64</os.detected.classifier>
+        <!-- <os.detected.classifier>osx-x86_64</os.detected.classifier> -->
     </properties>
 
     <dependencies>
