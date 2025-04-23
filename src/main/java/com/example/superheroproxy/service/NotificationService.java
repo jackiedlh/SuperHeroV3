@@ -20,6 +20,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.AsyncConfigurer;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.beans.factory.annotation.Value;
 
 import com.example.superheroproxy.config.NotificationConfig;
 import com.example.superheroproxy.proto.Hero;
@@ -31,6 +33,7 @@ import com.example.superheroproxy.proto.UpdateType;
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import net.devh.boot.grpc.server.service.GrpcService;
+import com.google.protobuf.Message;
 
 /**
  * A gRPC service that handles real-time notifications for hero updates.
@@ -72,6 +75,12 @@ public class NotificationService extends NotificationServiceGrpc.NotificationSer
     /** Counter for total number of active subscribers */
     private final AtomicInteger totalSubscribers = new AtomicInteger(0);
     private volatile boolean isShuttingDown = false;
+
+    @Autowired
+    private KafkaTemplate<String, Message> kafkaTemplate;
+
+    @Value("${kafka.topic.hero-updates}")
+    private String heroUpdatesTopic;
 
     /**
      * Inner class to track subscriber information including last activity time.
@@ -387,6 +396,40 @@ public class NotificationService extends NotificationServiceGrpc.NotificationSer
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             logger.error("Interrupted while shutting down NotificationService", e);
+        }
+    }
+
+    /**
+     * Sends a hero update to Kafka message queue.
+     * This method is used to publish hero updates to Kafka for asynchronous processing.
+     * 
+     * @param heroId The ID of the hero that was updated
+     * @param hero The updated hero object
+     * @param updateType The type of update that occurred
+     */
+    public void sendHeroUpdateToKafka(String heroId, Hero hero, UpdateType updateType) {
+        if (isShuttingDown) {
+            logger.warn("Service is shutting down, ignoring Kafka update for hero: {}", heroId);
+            return;
+        }
+
+        try {
+            HeroUpdate update = HeroUpdate.newBuilder()
+                    .setHeroId(heroId)
+                    .setHero(hero)
+                    .setUpdateType(updateType)
+                    .build();
+
+            kafkaTemplate.send(heroUpdatesTopic, heroId, update)
+                    .whenComplete((result, ex) -> {
+                        if (ex == null) {
+                            logger.debug("Successfully sent hero update to Kafka for hero: {}", heroId);
+                        } else {
+                            logger.error("Failed to send hero update to Kafka for hero: {}", heroId, ex);
+                        }
+                    });
+        } catch (Exception e) {
+            logger.error("Error sending hero update to Kafka for hero: {}", heroId, e);
         }
     }
 } 

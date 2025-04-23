@@ -18,6 +18,11 @@ spring:
           max-wait: -1
   application:
     name: superhero-proxy  # Application name for identification
+  kafka:
+    bootstrap-servers: kafka:29092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: com.example.superheroproxy.config.ProtoSerializer
 
 # Rate Limiting Configuration
 rate:
@@ -102,3 +107,7 @@ resilience4j:
     instances:
       externalApiService:
         base-config: default  # Use default circuit breaker configuration
+
+kafka:
+  topic:
+    hero-updates: hero-updates

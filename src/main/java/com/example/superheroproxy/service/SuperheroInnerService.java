@@ -133,6 +133,7 @@ public class SuperheroInnerService {
                     if (hero != null) {
                         // Notify subscribers about the initial data
                         notificationService.notifyHeroUpdate(key, hero, UpdateType.NEW);
+                        notificationService.sendHeroUpdateToKafka(key,hero,UpdateType.NEW);
                     }
 
                     return hero;
