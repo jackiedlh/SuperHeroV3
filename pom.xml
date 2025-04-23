@@ -158,6 +158,12 @@
             <artifactId>spring-kafka</artifactId>
             <version>3.1.0</version>
         </dependency>
+
+        <!-- Thymeleaf -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-thymeleaf</artifactId>
+        </dependency>
     </dependencies>
 
     <build>
