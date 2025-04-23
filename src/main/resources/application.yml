@@ -3,9 +3,19 @@ spring:
   profiles:
     active: dev  # Active Spring profile (dev, prod, etc.)
   cache:
-    type: caffeine  # Cache implementation type
-    caffeine:
-      spec: maximumSize=1000,expireAfterWrite=3000s  # Cache size limit and expiration time
+    type: redis  # Cache implementation type
+  data:
+    redis:
+      host: ${SPRING_REDIS_HOST:localhost}
+      port: ${SPRING_REDIS_PORT:6379}
+      database: 0
+      timeout: 2000
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: -1
   application:
     name: superhero-proxy  # Application name for identification
 

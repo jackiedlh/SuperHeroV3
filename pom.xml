@@ -19,7 +19,7 @@
         <java.version>17</java.version>
         <grpc.version>1.61.0</grpc.version>
         <protobuf.version>3.25.2</protobuf.version>
-        <os.detected.classifier>linux-x86_64</os.detected.classifier>
+<!--        <os.detected.classifierer>linux-x86_64</os.detected.classifierer>-->
         <!-- <os.detected.classifier>osx-x86_64</os.detected.classifier> -->
     </properties>
 
@@ -99,6 +99,16 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-cache</artifactId>
+        </dependency>
+
+        <!-- Redis -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-pool2</artifactId>
         </dependency>
 
         <!-- Guava -->

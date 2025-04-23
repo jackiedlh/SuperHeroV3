@@ -6,6 +6,9 @@ import com.example.superheroproxy.proto.Hero;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
+import org.springframework.data.redis.cache.RedisCache;
+import org.springframework.data.redis.connection.RedisConnection;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,6 +22,7 @@ import java.util.stream.Collectors;
 public class CacheController {
 
     private final CacheManager cacheManager;
+    private final RedisConnectionFactory redisConnectionFactory;
 
     /**
      * Constructor for HeroController.
@@ -26,8 +30,9 @@ public class CacheController {
      * @param cacheManager The cache manager for handling superhero cache operations
      */
     @Autowired
-    public CacheController(CacheManager cacheManager) {
+    public CacheController(CacheManager cacheManager, RedisConnectionFactory redisConnectionFactory) {
         this.cacheManager = cacheManager;
+        this.redisConnectionFactory = redisConnectionFactory;
     }
 
 
@@ -43,12 +48,10 @@ public class CacheController {
             return ResponseEntity.notFound().build();
         }
 
-        // Get the native cache to access keys
-        com.github.benmanes.caffeine.cache.Cache<Object, Object> nativeCache =
-            (com.github.benmanes.caffeine.cache.Cache<Object, Object>) cache.getNativeCache();
-
-        Set<String> keys = nativeCache.asMap().keySet().stream()
-            .map(Object::toString)
+        RedisConnection connection = redisConnectionFactory.getConnection();
+        Set<String> keys = connection.keys((CacheConfig.SUPERHERO_CACHE + "::*").getBytes()).stream()
+            .map(String::new)
+            .map(key -> key.substring(CacheConfig.SUPERHERO_CACHE.length() + 2)) // Remove "superheroCache::" prefix
             .collect(Collectors.toSet());
 
         return ResponseEntity.ok(keys);
@@ -85,7 +88,7 @@ public class CacheController {
      */
     @PostMapping("/{heroId}/name")
     public ResponseEntity<HeroDto> updateHeroNameInCache(@PathVariable String heroId, @RequestBody Map<String, String> request) {
-        Cache cache = cacheManager.getCache("superheroCache");
+        Cache cache = cacheManager.getCache(CacheConfig.SUPERHERO_CACHE);
         if (cache == null) {
             return ResponseEntity.notFound().build();
         }
@@ -112,7 +115,7 @@ public class CacheController {
      */
     @DeleteMapping("/{heroId}")
     public ResponseEntity<Void> deleteHeroFromCache(@PathVariable String heroId) {
-        Cache cache = cacheManager.getCache("superheroCache");
+        Cache cache = cacheManager.getCache(CacheConfig.SUPERHERO_CACHE);
         if (cache == null) {
             return ResponseEntity.notFound().build();
         }
@@ -128,23 +131,29 @@ public class CacheController {
      */
     @GetMapping("/stats")
     public ResponseEntity<Map<String, Object>> getCacheStats() {
-        Cache cache = cacheManager.getCache("superheroCache");
+        Cache cache = cacheManager.getCache(CacheConfig.SUPERHERO_CACHE);
         if (cache == null) {
             return ResponseEntity.notFound().build();
         }
 
-        com.github.benmanes.caffeine.cache.Cache<Object, Object> nativeCache =
-                (com.github.benmanes.caffeine.cache.Cache<Object, Object>) cache.getNativeCache();
-
+        RedisCache redisCache = (RedisCache) cache;
+        RedisConnection connection = redisConnectionFactory.getConnection();
+        
         Map<String, Object> stats = new HashMap<>();
-        stats.put("size", nativeCache.estimatedSize());
-        stats.put("hitCount", nativeCache.stats().hitCount());
-        stats.put("missCount", nativeCache.stats().missCount());
-        stats.put("hitRate", nativeCache.stats().hitRate());
-        stats.put("evictionCount", nativeCache.stats().evictionCount());
+        stats.put("size", connection.dbSize());
+        stats.put("hitCount", connection.info("stats").get("keyspace_hits"));
+        stats.put("missCount", connection.info("stats").get("keyspace_misses"));
+        stats.put("hitRate", calculateHitRate(connection));
+        stats.put("evictionCount", connection.info("stats").get("evicted_keys"));
 
         return ResponseEntity.ok(stats);
     }
 
+    private double calculateHitRate(RedisConnection connection) {
+        long hits = Long.parseLong(connection.info("stats").get("keyspace_hits").toString());
+        long misses = Long.parseLong(connection.info("stats").get("keyspace_misses").toString());
+        long total = hits + misses;
+        return total > 0 ? (double) hits / total : 0.0;
+    }
 
 }
