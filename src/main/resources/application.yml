@@ -19,6 +19,7 @@ spring:
   application:
     name: superhero-proxy  # Application name for identification
   kafka:
+#    bootstrap-servers: localhost:9092
     bootstrap-servers: kafka:29092
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
@@ -111,3 +112,6 @@ resilience4j:
 kafka:
   topic:
     hero-updates: hero-updates
+  consumer:
+    group-id: hero-update-consumer-group
+
