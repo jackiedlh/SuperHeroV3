@@ -2,6 +2,7 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <title>Hero Update Messages</title>
+    <script th:src="@{/js/utils.js}"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -102,7 +103,7 @@
             <div class="message-header">
                 <span class="message-type" th:classappend="'type-' + ${message.updateType}"
                       th:text="${message.updateType}">UPDATE_TYPE</span>
-                <span class="timestamp" th:text="${#dates.format(#dates.createNow(), 'yyyy-MM-dd HH:mm:ss')}">TIMESTAMP</span>
+                <span class="timestamp" th:data-timestamp="${#dates.createNow().time}"></span>
             </div>
             <div class="message-content">
                 <strong>Hero ID:</strong> <span th:text="${message.heroId}">HERO_ID</span>
@@ -144,5 +145,16 @@
             </div>
         </div>
     </div>
+
+    <script>
+        // Format all timestamps when the page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            const timestamps = document.querySelectorAll('.timestamp');
+            timestamps.forEach(timestamp => {
+                const epochMillis = timestamp.getAttribute('data-timestamp');
+                timestamp.textContent = window.utils.formatTimestampUTC8(parseInt(epochMillis));
+            });
+        });
+    </script>
 </body>
 </html> 

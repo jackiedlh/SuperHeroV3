@@ -20,6 +20,6 @@ public class MessageController {
     public String getMessages(Model model) {
         List<HeroUpdate> messages = messageStorageService.getMessages();
         model.addAttribute("messages", messages);
-        return "messages";  // This will resolve to messages.html in the templates directory
+        return "messages";
     }
 } 
